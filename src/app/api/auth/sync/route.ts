@@ -26,7 +26,7 @@ export async function POST(request: Request) {
     }
     
     console.log('API /api/auth/sync: Request body:', JSON.stringify(body));
-    const { id, email, name, phone, role } = body;
+    const { id, email, name, phone, role, profession, customProfession } = body;
 
     if (!id || !email || !name) {
       console.warn('API /api/auth/sync: Missing required fields');
@@ -70,10 +70,56 @@ export async function POST(request: Request) {
     // If role is WORKER, ensure worker profile exists
     if (userRecord.role === 'WORKER') {
       console.log('API /api/auth/sync: Ensuring worker profile for', userRecord.id);
+      
+      let categoryId = null;
+      if (profession && profession !== 'Others') {
+        const matchingCategories = await sql`SELECT id FROM "Category" WHERE name = ${profession}`;
+        if (matchingCategories.length > 0) {
+          categoryId = matchingCategories[0].id;
+        } else {
+          // Create the category dynamically if it doesn't exist
+          const icons: Record<string, string> = {
+            'Plumbing': '🔧',
+            'Electrical': '⚡',
+            'Cleaning': '✨',
+            'AC Repair': '💨',
+            'Painting': '🎨',
+            'Carpentry': '🔨',
+            'Pest Control': '🐜',
+            'Salon': '✂️',
+          };
+          const icon = icons[profession] || '🛠️';
+          const newCategory = await sql`
+            INSERT INTO "Category" (id, name, icon, description)
+            VALUES (gen_random_uuid(), ${profession}, ${icon}, ${profession + ' Services'})
+            RETURNING id
+          `;
+          if (newCategory.length > 0) {
+            categoryId = newCategory[0].id;
+          }
+        }
+      }
+
+      const selectedSkill = profession === 'Others' ? customProfession : profession;
+      const skillsArray = selectedSkill ? [selectedSkill] : [];
+
       await sql`
-        INSERT INTO "WorkerProfile" (id, "userId", skills, experience, "isOnline", rating, "totalReviews", "updatedAt")
-        VALUES (gen_random_uuid(), ${userRecord.id}, ARRAY[]::text[], 0, false, 0.0, 0, NOW())
-        ON CONFLICT ("userId") DO NOTHING
+        INSERT INTO "WorkerProfile" (
+          id, "userId", skills, experience, "isOnline", rating, "totalReviews", 
+          "userType", "profession", "customProfession", "categoryId", "updatedAt"
+        )
+        VALUES (
+          gen_random_uuid(), ${userRecord.id}, ${skillsArray}::text[], 0, false, 0.0, 0, 
+          'worker', ${profession || null}, ${customProfession || ''}, ${categoryId}, NOW()
+        )
+        ON CONFLICT ("userId") DO UPDATE
+        SET 
+          "userType" = 'worker',
+          "skills" = COALESCE(${skillsArray}::text[], "WorkerProfile"."skills"),
+          "profession" = COALESCE(${profession || null}, "WorkerProfile"."profession"),
+          "customProfession" = COALESCE(${customProfession || ''}, "WorkerProfile"."customProfession"),
+          "categoryId" = COALESCE(${categoryId}, "WorkerProfile"."categoryId"),
+          "updatedAt" = NOW()
       `;
     }
 

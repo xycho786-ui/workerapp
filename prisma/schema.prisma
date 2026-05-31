@@ -46,6 +46,11 @@ model WorkerProfile {
   rating       Float    @default(0.0)
   totalReviews Int      @default(0)
   
+  // Profession Selection
+  userType         String?  @default("worker")
+  profession       String?
+  customProfession String?
+  
   // Jobs/Bookings handled
   jobs         Booking[] @relation("WorkerBookings")
   reviews      Review[]  @relation("WorkerReviews")

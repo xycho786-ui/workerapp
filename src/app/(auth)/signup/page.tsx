@@ -4,6 +4,20 @@ import { useState } from "react";
 import { createClient } from "@/utils/supabase/client";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { Wrench, Zap, Sparkles, Wind, Paintbrush, Hammer, Bug, Scissors, Briefcase } from "lucide-react";
+
+const PROFESSIONS = [
+  { name: "Plumbing", icon: Wrench },
+  { name: "Electrical", icon: Zap },
+  { name: "Cleaning", icon: Sparkles },
+  { name: "AC Repair", icon: Wind },
+  { name: "Painting", icon: Paintbrush },
+  { name: "Carpentry", icon: Hammer },
+  { name: "Pest Control", icon: Bug },
+  { name: "Salon", icon: Scissors },
+  { name: "Others", icon: Briefcase },
+];
+
 
 export default function SignupPage() {
   const router = useRouter();
@@ -11,6 +25,9 @@ export default function SignupPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+
+  const [selectedProfession, setSelectedProfession] = useState<string | null>(null);
+  const [customProfession, setCustomProfession] = useState("");
 
   const [formData, setFormData] = useState({
     name: "",
@@ -36,6 +53,20 @@ export default function SignupPage() {
       return;
     }
 
+    // Validation rules for worker profession selection
+    if (formData.role === "WORKER") {
+      if (!selectedProfession) {
+        setError("Please select your profession.");
+        setLoading(false);
+        return;
+      }
+      if (selectedProfession === "Others" && !customProfession.trim()) {
+        setError("Please enter your profession.");
+        setLoading(false);
+        return;
+      }
+    }
+
     try {
       // 1. Sign up with Supabase
       const { data: authData, error: authError } = await supabase.auth.signUp({
@@ -46,6 +77,8 @@ export default function SignupPage() {
             full_name: formData.name,
             role: formData.role,
             phone: formData.phone,
+            profession: formData.role === "WORKER" ? selectedProfession : undefined,
+            customProfession: formData.role === "WORKER" && selectedProfession === "Others" ? customProfession.trim() : undefined,
           }
         }
       });
@@ -63,6 +96,8 @@ export default function SignupPage() {
             name: formData.name,
             phone: formData.phone,
             role: formData.role,
+            profession: formData.role === "WORKER" ? selectedProfession : undefined,
+            customProfession: formData.role === "WORKER" && selectedProfession === "Others" ? customProfession.trim() : undefined,
           }),
         });
 
@@ -193,6 +228,56 @@ export default function SignupPage() {
             placeholder="••••••••"
           />
         </div>
+
+        {formData.role === "WORKER" && (
+          <div className="space-y-4 pt-2">
+            <label className="text-sm font-semibold text-gray-700 block">Select Your Profession</label>
+            <div className="grid grid-cols-3 gap-3">
+              {PROFESSIONS.map((p) => {
+                const Icon = p.icon;
+                const isSelected = selectedProfession === p.name;
+                return (
+                  <button
+                    key={p.name}
+                    type="button"
+                    onClick={() => {
+                      setSelectedProfession(p.name);
+                      if (p.name !== "Others") {
+                        setCustomProfession("");
+                      }
+                    }}
+                    className="flex flex-col items-center gap-2 group cursor-pointer"
+                  >
+                    <div className={`w-16 h-16 rounded-2xl border flex items-center justify-center shadow-sm transition-all group-active:scale-95 ${
+                      isSelected
+                        ? "bg-primary/15 border-primary shadow-md text-primary ring-2 ring-primary/20"
+                        : "bg-primary/5 border-primary/10 text-primary group-hover:bg-primary/10 group-hover:border-primary/20"
+                    }`}>
+                      <Icon size={26} className="stroke-[1.5]" />
+                    </div>
+                    <span className={`text-[11px] font-semibold text-center transition-colors ${
+                      isSelected ? "text-primary font-bold" : "text-slate-600"
+                    }`}>{p.name}</span>
+                  </button>
+                );
+              })}
+            </div>
+
+            {selectedProfession === "Others" && (
+              <div className="space-y-1.5 mt-3 animate-in fade-in slide-in-from-top-2 duration-200">
+                <label className="text-xs font-semibold text-gray-500">Your Profession</label>
+                <input
+                  type="text"
+                  value={customProfession}
+                  onChange={(e) => setCustomProfession(e.target.value)}
+                  placeholder="Enter your profession"
+                  className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-sm text-gray-800"
+                  required
+                />
+              </div>
+            )}
+          </div>
+        )}
 
         <button 
           type="submit" 
