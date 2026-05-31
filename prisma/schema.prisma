@@ -26,6 +26,7 @@ model User {
   messagesSent      Message[]      @relation("MessagesSent")
   conversationsAsUser Conversation[] @relation("ConversationUser")
   notifications     Notification[] @relation("UserNotifications")
+  serviceRequests   ServiceRequest[] @relation("CustomerRequests")
 }
 
 model WorkerProfile {
@@ -171,4 +172,41 @@ enum BookingStatus {
   IN_PROGRESS
   COMPLETED
   CANCELLED
+}
+
+model ServiceRequest {
+  id          String   @id @default(uuid())
+  customerId  String
+  customer    User     @relation("CustomerRequests", fields: [customerId], references: [id])
+  
+  category    String
+  description String
+  budget      Float?
+  
+  status      RequestStatus @default(OPEN)
+  media       Media[]
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Media {
+  id               String   @id @default(uuid())
+  url              String
+  type             MediaType // IMAGE, VIDEO, AUDIO
+  serviceRequestId String
+  serviceRequest   ServiceRequest @relation(fields: [serviceRequestId], references: [id], onDelete: Cascade)
+  createdAt        DateTime @default(now())
+}
+
+enum RequestStatus {
+  OPEN
+  MATCHED
+  CLOSED
+}
+
+enum MediaType {
+  IMAGE
+  VIDEO
+  AUDIO
 }

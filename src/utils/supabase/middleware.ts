@@ -40,6 +40,7 @@ export const updateSession = async (request: NextRequest) => {
   
   // Protect routes that require authentication
   const isProtectedPage = 
+    request.nextUrl.pathname === '/' ||
     request.nextUrl.pathname.startsWith('/jobs') || 
     request.nextUrl.pathname.startsWith('/chat') || 
     request.nextUrl.pathname.startsWith('/notifications') || 

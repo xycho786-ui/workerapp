@@ -13,7 +13,7 @@ export default function CustomerDashboard() {
         
         {/* Quick Actions */}
         <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 flex justify-between">
-          <Link href="/" className="flex flex-col items-center gap-2 flex-1 border-r border-gray-100">
+          <Link href="/customer/explore" className="flex flex-col items-center gap-2 flex-1 border-r border-gray-100">
             <div className="w-12 h-12 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center">
               <Search size={24} />
             </div>
@@ -36,7 +36,7 @@ export default function CustomerDashboard() {
             </div>
             <h3 className="text-gray-900 font-medium">No bookings yet</h3>
             <p className="text-gray-500 text-sm mt-1">Start by searching for workers near you.</p>
-            <Link href="/" className="mt-4 inline-block bg-primary text-white font-medium px-6 py-2.5 rounded-xl text-sm">
+            <Link href="/customer/explore" className="mt-4 inline-block bg-primary text-white font-medium px-6 py-2.5 rounded-xl text-sm">
               Explore Workers
             </Link>
           </div>

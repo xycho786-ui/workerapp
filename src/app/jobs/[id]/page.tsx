@@ -21,7 +21,7 @@ export default async function WorkerProfilePage(props: { params: Promise<{ id: s
   return (
     <div className="flex flex-col h-full bg-gray-50/50 pb-24">
       <header className="flex items-center px-4 py-4 bg-white sticky top-0 z-10 border-b border-gray-100 shadow-sm">
-        <Link href="/" className="p-2 -ml-2 text-gray-700 hover:bg-gray-100 rounded-full transition-colors">
+        <Link href="/customer/explore" className="p-2 -ml-2 text-gray-700 hover:bg-gray-100 rounded-full transition-colors">
           <ArrowLeft size={24} />
         </Link>
         <h1 className="text-lg font-bold text-gray-900 tracking-tight ml-2">Worker Profile</h1>

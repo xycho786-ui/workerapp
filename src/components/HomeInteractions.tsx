@@ -26,7 +26,7 @@ export default function HomeInteractions({ userName, userEmail }: { userName?: s
       } else {
         params.delete("search");
       }
-      router.push(`/?${params.toString()}`);
+      router.push(`/customer/explore?${params.toString()}`);
     }, 500);
 
     return () => clearTimeout(delayDebounceFn);
@@ -35,7 +35,7 @@ export default function HomeInteractions({ userName, userEmail }: { userName?: s
   const handleFilterSelect = (filter: string) => {
     const params = new URLSearchParams(searchParams.toString());
     params.set("filter", filter);
-    router.push(`/?${params.toString()}`);
+    router.push(`/customer/explore?${params.toString()}`);
     setIsFilterOpen(false);
   };
 
@@ -124,13 +124,13 @@ export default function HomeInteractions({ userName, userEmail }: { userName?: s
             </div>
             
             <nav className="flex-1 px-3 py-3 space-y-1">
-              <Link href="/" onClick={() => setIsSidebarOpen(false)} className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-gray-50 text-gray-700 font-medium transition-colors text-sm">
+              <Link href="/customer/dashboard" onClick={() => setIsSidebarOpen(false)} className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-gray-50 text-gray-700 font-medium transition-colors text-sm">
                 <Home size={18} className="text-gray-400" /> Home
               </Link>
-              <Link href="/profile" onClick={() => setIsSidebarOpen(false)} className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-gray-50 text-gray-700 font-medium transition-colors text-sm">
+              <Link href="/customer/profile" onClick={() => setIsSidebarOpen(false)} className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-gray-50 text-gray-700 font-medium transition-colors text-sm">
                 <UserCircle size={18} className="text-gray-400" /> Profile
               </Link>
-              <Link href="/jobs" onClick={() => setIsSidebarOpen(false)} className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-gray-50 text-gray-700 font-medium transition-colors text-sm">
+              <Link href="/customer/jobs" onClick={() => setIsSidebarOpen(false)} className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-gray-50 text-gray-700 font-medium transition-colors text-sm">
                 <Briefcase size={18} className="text-gray-400" /> My Bookings
               </Link>
             </nav>

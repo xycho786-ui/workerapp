@@ -3,13 +3,14 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import clsx from "clsx";
+import { Home, Briefcase, MessageSquare, Bell, User } from "lucide-react";
 
 const navItems = [
-  { name: "Home", href: "/customer/dashboard", icon: "🏠" },
-  { name: "Jobs", href: "/customer/jobs", icon: "💼" },
-  { name: "Chat", href: "/customer/chat", icon: "💬" },
-  { name: "Alerts", href: "/customer/notifications", icon: "🔔" },
-  { name: "Profile", href: "/customer/profile", icon: "👤" },
+  { name: "Home", href: "/customer/dashboard", icon: <Home className="w-6 h-6" /> },
+  { name: "Jobs", href: "/customer/jobs", icon: <Briefcase className="w-6 h-6" /> },
+  { name: "Chat", href: "/customer/chat", icon: <MessageSquare className="w-6 h-6" /> },
+  { name: "Alerts", href: "/customer/notifications", icon: <Bell className="w-6 h-6" /> },
+  { name: "Profile", href: "/customer/profile", icon: <User className="w-6 h-6" /> },
 ];
 
 export default function CustomerBottomNav() {
