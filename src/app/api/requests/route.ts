@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
 import postgres from 'postgres';
-import { v4 as uuidv4 } from 'uuid';
 
 export async function POST(request: Request) {
   const connectionString = process.env.DATABASE_URL;
@@ -29,7 +28,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ message: 'Category and description are required' }, { status: 400 });
     }
 
-    const requestId = uuidv4();
+    const requestId = crypto.randomUUID();
     
     // Since we can't guarantee the customerId exists in the DB if we hardcode 'test-customer-id', 
     // We will simulate the success response for the UI development if we catch a foreign key error,
@@ -47,7 +46,7 @@ export async function POST(request: Request) {
       const files = formData.getAll('media');
       for (const file of files) {
         if (file instanceof File) {
-          const mediaId = uuidv4();
+          const mediaId = crypto.randomUUID();
           let type = 'IMAGE';
           if (file.type.startsWith('video/')) type = 'VIDEO';
           if (file.type.startsWith('audio/')) type = 'AUDIO';
