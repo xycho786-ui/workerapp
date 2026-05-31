@@ -1,17 +1,61 @@
 import Link from "next/link";
 import { createClient } from "@/utils/supabase/server";
 import { prisma } from "@/lib/prisma";
+import OpportunitiesFeed from "@/components/OpportunitiesFeed";
 
 export default async function WorkerDashboard() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
   let dbUser = null;
+  let openRequests: any[] = [];
+  let activeBooking: any = null;
+
   if (user && user.email) {
     dbUser = await prisma.user.findUnique({
       where: { email: user.email },
       include: { workerProfile: true }
     });
+
+    if (dbUser?.workerProfile) {
+      // Find current active bookings for this worker
+      activeBooking = await prisma.booking.findFirst({
+        where: {
+          workerId: dbUser.workerProfile.id,
+          status: {
+            in: ['ACCEPTED', 'IN_PROGRESS']
+          }
+        },
+        include: {
+          customer: true
+        },
+        orderBy: {
+          createdAt: 'desc'
+        }
+      });
+
+      // Find all open service requests matching worker professions or skills
+      const professions = dbUser.workerProfile.profession || [];
+      const skills = dbUser.workerProfile.skills || [];
+      const searchTerms = Array.from(new Set([...professions, ...skills]));
+
+      if (searchTerms.length > 0) {
+        openRequests = await prisma.serviceRequest.findMany({
+          where: {
+            status: 'OPEN',
+            category: {
+              in: searchTerms
+            }
+          },
+          include: {
+            customer: true
+          },
+          orderBy: {
+            createdAt: 'desc'
+          }
+        });
+      }
+    }
   }
 
   const name = dbUser?.name?.split(' ')[0] || 'Worker';
@@ -69,11 +113,42 @@ export default async function WorkerDashboard() {
       {/* Current Task */}
       <div className="px-4 mt-5">
         <div className="font-bold text-[15px] text-[#1A2340] mb-2.5">Current Task</div>
-        <div className="bg-white rounded-2xl p-6 shadow-[0_2px_12px_rgba(0,0,0,0.06)] flex flex-col items-center justify-center text-center">
-          <div className="text-3xl mb-2">📋</div>
-          <div className="text-[14px] font-bold text-[#1A2340]">No active tasks</div>
-          <div className="text-[13px] text-[#888BA0] mt-1">You don't have any ongoing jobs right now.</div>
-        </div>
+        {activeBooking ? (
+          <div className="bg-white rounded-2xl p-5 shadow-[0_2px_12px_rgba(0,0,0,0.06)] border border-[#E6FBF5] flex flex-col">
+            <div className="flex justify-between items-start mb-3">
+              <div className="flex items-center gap-2.5">
+                <span className="text-[22px]">📋</span>
+                <div>
+                  <div className="text-[14px] font-bold text-[#1A2340]">Active Booking</div>
+                  <div className="text-[11px] text-[#888BA0] font-semibold">Client: {activeBooking.customer.name}</div>
+                </div>
+              </div>
+              <span className="bg-[#E6FBF5] text-[#00A87A] rounded-full px-2.5 py-0.5 text-[10px] font-extrabold uppercase">
+                {activeBooking.status}
+              </span>
+            </div>
+            <p className="text-xs text-slate-600 leading-relaxed font-medium mb-4 bg-slate-50 p-3 rounded-xl border border-slate-200/50">
+              {activeBooking.jobDetails}
+            </p>
+            <div className="flex justify-between items-center mt-1">
+              {activeBooking.price !== null && (
+                <div>
+                  <span className="text-[10px] text-slate-400 font-bold block uppercase tracking-wide">Price</span>
+                  <span className="text-sm font-extrabold text-[#E8514A]">₹{activeBooking.price}</span>
+                </div>
+              )}
+              <Link href="/worker/chat" className="bg-[#1A2340] hover:bg-[#2D3F6A] text-white font-bold px-4 py-2 rounded-xl text-xs transition-colors shadow-sm active:scale-[0.98]">
+                Message Client
+              </Link>
+            </div>
+          </div>
+        ) : (
+          <div className="bg-white rounded-2xl p-6 shadow-[0_2px_12px_rgba(0,0,0,0.06)] flex flex-col items-center justify-center text-center">
+            <div className="text-3xl mb-2">📋</div>
+            <div className="text-[14px] font-bold text-[#1A2340]">No active tasks</div>
+            <div className="text-[13px] text-[#888BA0] mt-1">You don't have any ongoing jobs right now.</div>
+          </div>
+        )}
       </div>
 
       {/* New Opportunities */}
@@ -82,11 +157,7 @@ export default async function WorkerDashboard() {
       </div>
 
       <div className="px-4 space-y-3">
-        <div className="bg-white rounded-2xl p-6 shadow-[0_2px_12px_rgba(0,0,0,0.06)] flex flex-col items-center justify-center text-center">
-          <div className="text-3xl mb-2">🔍</div>
-          <div className="text-[14px] font-bold text-[#1A2340]">No jobs available yet</div>
-          <div className="text-[13px] text-[#888BA0] mt-1">We'll notify you when new opportunities appear in your area.</div>
-        </div>
+        <OpportunitiesFeed initialOpportunities={openRequests} />
       </div>
     </div>
   );

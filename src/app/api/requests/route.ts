@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import postgres from 'postgres';
+import { createClient } from '@/utils/supabase/server';
 
 export async function POST(request: Request) {
   const connectionString = process.env.DATABASE_URL;
@@ -15,9 +16,31 @@ export async function POST(request: Request) {
     // Log for debugging
     console.log('Received service request submission');
     
-    // In a real app, you would authenticate the user here
-    // For now we will create a dummy customer ID or extract it from headers/cookies if available
-    const customerId = formData.get('customerId') as string || 'test-customer-id'; 
+    // Resolve a valid customer ID to satisfy database foreign key constraints
+    let customerId = null;
+    try {
+      const supabase = await createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const dbUsers = await sql`SELECT id FROM "User" WHERE id = ${user.id}`;
+        if (dbUsers.length > 0) {
+          customerId = dbUsers[0].id;
+        }
+      }
+    } catch (e) {
+      console.warn("Failed to get authenticated user session", e);
+    }
+
+    if (!customerId) {
+      const dbUsers = await sql`SELECT id FROM "User" WHERE role = 'CUSTOMER' LIMIT 1`;
+      if (dbUsers.length > 0) {
+        customerId = dbUsers[0].id;
+      }
+    }
+
+    if (!customerId) {
+      return NextResponse.json({ message: 'No valid customer user found in database to link the request' }, { status: 400 });
+    } 
     
     const category = formData.get('category') as string;
     const description = formData.get('description') as string;
