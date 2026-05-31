@@ -4,7 +4,7 @@ import { useState } from "react";
 import { createClient } from "@/utils/supabase/client";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Wrench, Zap, Sparkles, Wind, Paintbrush, Hammer, Bug, Scissors, Briefcase } from "lucide-react";
+import { Wrench, Zap, Sparkles, Wind, Paintbrush, Hammer, Bug, Scissors, Briefcase, Check } from "lucide-react";
 
 const PROFESSIONS = [
   { name: "Plumbing", icon: Wrench },
@@ -245,7 +245,7 @@ export default function SignupPage() {
 
         {formData.role === "WORKER" && (
           <div className="space-y-4 pt-2">
-            <label className="text-sm font-semibold text-gray-700 block">Select Your Profession</label>
+            <label className="text-sm font-semibold text-slate-800 block">Select Your Profession(s)</label>
             <div className="grid grid-cols-3 gap-3">
               {PROFESSIONS.map((p) => {
                 const Icon = p.icon;
@@ -255,26 +255,38 @@ export default function SignupPage() {
                     key={p.name}
                     type="button"
                     onClick={() => handleToggleProfession(p.name)}
-                    className="flex flex-col items-center gap-2 group cursor-pointer"
-                  >
-                    <div className={`w-16 h-16 rounded-2xl border flex items-center justify-center shadow-sm transition-all group-active:scale-95 ${
+                    className={`flex flex-col items-center justify-center p-3 rounded-2xl border aspect-square relative transition-all duration-300 hover:scale-[1.03] hover:-translate-y-0.5 active:scale-95 group shadow-[0_4px_12px_rgba(0,0,0,0.02)] ${
                       isSelected
-                        ? "bg-primary/15 border-primary shadow-md text-primary ring-2 ring-primary/20"
-                        : "bg-primary/5 border-primary/10 text-primary group-hover:bg-primary/10 group-hover:border-primary/20"
+                        ? "bg-gradient-to-br from-primary to-[#F4978E] border-transparent shadow-lg shadow-primary/20 text-white"
+                        : "bg-white border-slate-100 hover:border-primary/25 text-slate-600 hover:shadow-md"
+                    }`}
+                  >
+                    {/* Checkmark Badge */}
+                    {isSelected && (
+                      <div className="absolute top-2 right-2 w-5 h-5 bg-white text-primary rounded-full flex items-center justify-center shadow-md animate-in zoom-in duration-200">
+                        <Check size={11} className="stroke-[3]" />
+                      </div>
+                    )}
+                    
+                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-colors duration-300 ${
+                      isSelected ? "bg-white/15 text-white" : "bg-primary/5 text-primary group-hover:bg-primary/10"
                     }`}>
-                      <Icon size={26} className="stroke-[1.5]" />
+                      <Icon size={22} className="stroke-[1.75]" />
                     </div>
-                    <span className={`text-[11px] font-semibold text-center transition-colors ${
-                      isSelected ? "text-primary font-bold" : "text-slate-600"
-                    }`}>{p.name}</span>
+                    
+                    <span className={`text-[11px] font-bold text-center mt-2.5 leading-tight truncate w-full transition-colors duration-300 ${
+                      isSelected ? "text-white" : "text-slate-700 group-hover:text-primary"
+                    }`}>
+                      {p.name}
+                    </span>
                   </button>
                 );
               })}
             </div>
 
             {selectedProfessions.includes("Others") && (
-              <div className="space-y-1.5 mt-3 animate-in fade-in slide-in-from-top-2 duration-200">
-                <label className="text-xs font-semibold text-gray-500">Your Profession</label>
+              <div className="space-y-1.5 mt-4 animate-in fade-in slide-in-from-top-2 duration-200">
+                <label className="text-xs font-semibold text-slate-500">Your Profession</label>
                 <input
                   type="text"
                   value={customProfession}
