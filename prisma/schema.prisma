@@ -48,7 +48,7 @@ model WorkerProfile {
   
   // Profession Selection
   userType         String?  @default("worker")
-  profession       String?
+  profession       String[]
   customProfession String?
   
   // Jobs/Bookings handled

@@ -17,7 +17,7 @@ export default async function ExplorePage(props: {
           { skills: { hasSome: [search] } },
           { user: { name: { contains: search, mode: "insensitive" as const } } },
           { category: { name: { contains: search, mode: "insensitive" as const } } },
-          { profession: { contains: search, mode: "insensitive" as const } },
+          { profession: { hasSome: [search] } },
           { customProfession: { contains: search, mode: "insensitive" as const } },
         ],
       }

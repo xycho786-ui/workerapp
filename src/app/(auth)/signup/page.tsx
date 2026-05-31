@@ -26,8 +26,22 @@ export default function SignupPage() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
 
-  const [selectedProfession, setSelectedProfession] = useState<string | null>(null);
+  const [selectedProfessions, setSelectedProfessions] = useState<string[]>([]);
   const [customProfession, setCustomProfession] = useState("");
+
+  const handleToggleProfession = (name: string) => {
+    setSelectedProfessions(prev => {
+      if (prev.includes(name)) {
+        const next = prev.filter(p => p !== name);
+        if (name === "Others") {
+          setCustomProfession("");
+        }
+        return next;
+      } else {
+        return [...prev, name];
+      }
+    });
+  };
 
   const [formData, setFormData] = useState({
     name: "",
@@ -55,12 +69,12 @@ export default function SignupPage() {
 
     // Validation rules for worker profession selection
     if (formData.role === "WORKER") {
-      if (!selectedProfession) {
+      if (selectedProfessions.length === 0) {
         setError("Please select your profession.");
         setLoading(false);
         return;
       }
-      if (selectedProfession === "Others" && !customProfession.trim()) {
+      if (selectedProfessions.includes("Others") && !customProfession.trim()) {
         setError("Please enter your profession.");
         setLoading(false);
         return;
@@ -77,8 +91,8 @@ export default function SignupPage() {
             full_name: formData.name,
             role: formData.role,
             phone: formData.phone,
-            profession: formData.role === "WORKER" ? selectedProfession : undefined,
-            customProfession: formData.role === "WORKER" && selectedProfession === "Others" ? customProfession.trim() : undefined,
+            profession: formData.role === "WORKER" ? selectedProfessions : undefined,
+            customProfession: formData.role === "WORKER" && selectedProfessions.includes("Others") ? customProfession.trim() : undefined,
           }
         }
       });
@@ -96,8 +110,8 @@ export default function SignupPage() {
             name: formData.name,
             phone: formData.phone,
             role: formData.role,
-            profession: formData.role === "WORKER" ? selectedProfession : undefined,
-            customProfession: formData.role === "WORKER" && selectedProfession === "Others" ? customProfession.trim() : undefined,
+            profession: formData.role === "WORKER" ? selectedProfessions : undefined,
+            customProfession: formData.role === "WORKER" && selectedProfessions.includes("Others") ? customProfession.trim() : undefined,
           }),
         });
 
@@ -235,17 +249,12 @@ export default function SignupPage() {
             <div className="grid grid-cols-3 gap-3">
               {PROFESSIONS.map((p) => {
                 const Icon = p.icon;
-                const isSelected = selectedProfession === p.name;
+                const isSelected = selectedProfessions.includes(p.name);
                 return (
                   <button
                     key={p.name}
                     type="button"
-                    onClick={() => {
-                      setSelectedProfession(p.name);
-                      if (p.name !== "Others") {
-                        setCustomProfession("");
-                      }
-                    }}
+                    onClick={() => handleToggleProfession(p.name)}
                     className="flex flex-col items-center gap-2 group cursor-pointer"
                   >
                     <div className={`w-16 h-16 rounded-2xl border flex items-center justify-center shadow-sm transition-all group-active:scale-95 ${
@@ -263,7 +272,7 @@ export default function SignupPage() {
               })}
             </div>
 
-            {selectedProfession === "Others" && (
+            {selectedProfessions.includes("Others") && (
               <div className="space-y-1.5 mt-3 animate-in fade-in slide-in-from-top-2 duration-200">
                 <label className="text-xs font-semibold text-gray-500">Your Profession</label>
                 <input

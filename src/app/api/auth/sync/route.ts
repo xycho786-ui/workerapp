@@ -72,8 +72,12 @@ export async function POST(request: Request) {
       console.log('API /api/auth/sync: Ensuring worker profile for', userRecord.id);
       
       let categoryId = null;
-      if (profession && profession !== 'Others') {
-        const matchingCategories = await sql`SELECT id FROM "Category" WHERE name = ${profession}`;
+      // Get primary profession from the array for category assignment
+      const professionList = Array.isArray(profession) ? profession : (profession ? [profession] : []);
+      const primaryProfession = professionList.find(p => p !== 'Others');
+
+      if (primaryProfession) {
+        const matchingCategories = await sql`SELECT id FROM "Category" WHERE name = ${primaryProfession}`;
         if (matchingCategories.length > 0) {
           categoryId = matchingCategories[0].id;
         } else {
@@ -88,10 +92,10 @@ export async function POST(request: Request) {
             'Pest Control': '🐜',
             'Salon': '✂️',
           };
-          const icon = icons[profession] || '🛠️';
+          const icon = icons[primaryProfession] || '🛠️';
           const newCategory = await sql`
             INSERT INTO "Category" (id, name, icon, description)
-            VALUES (gen_random_uuid(), ${profession}, ${icon}, ${profession + ' Services'})
+            VALUES (gen_random_uuid(), ${primaryProfession}, ${icon}, ${primaryProfession + ' Services'})
             RETURNING id
           `;
           if (newCategory.length > 0) {
@@ -100,8 +104,12 @@ export async function POST(request: Request) {
         }
       }
 
-      const selectedSkill = profession === 'Others' ? customProfession : profession;
-      const skillsArray = selectedSkill ? [selectedSkill] : [];
+      // Add all selected professions (excluding 'Others') to the skills array
+      // If "Others" is selected, append the customProfession value
+      let skillsArray = professionList.filter(p => p !== 'Others');
+      if (professionList.includes('Others') && customProfession) {
+        skillsArray.push(customProfession);
+      }
 
       await sql`
         INSERT INTO "WorkerProfile" (
@@ -110,13 +118,13 @@ export async function POST(request: Request) {
         )
         VALUES (
           gen_random_uuid(), ${userRecord.id}, ${skillsArray}::text[], 0, false, 0.0, 0, 
-          'worker', ${profession || null}, ${customProfession || ''}, ${categoryId}, NOW()
+          'worker', ${professionList}::text[], ${customProfession || ''}, ${categoryId}, NOW()
         )
         ON CONFLICT ("userId") DO UPDATE
         SET 
           "userType" = 'worker',
           "skills" = COALESCE(${skillsArray}::text[], "WorkerProfile"."skills"),
-          "profession" = COALESCE(${profession || null}, "WorkerProfile"."profession"),
+          "profession" = COALESCE(${professionList}::text[], "WorkerProfile"."profession"),
           "customProfession" = COALESCE(${customProfession || ''}, "WorkerProfile"."customProfession"),
           "categoryId" = COALESCE(${categoryId}, "WorkerProfile"."categoryId"),
           "updatedAt" = NOW()
