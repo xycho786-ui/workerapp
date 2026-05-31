@@ -12,7 +12,7 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
-    const { name, phone, dob, address, locationAddress, hourlyRate, skills } = body;
+    const { name, phone, dob, address, locationAddress, hourlyRate, skills, profession, customProfession } = body;
 
     // Update User
     const updatedUser = await prisma.user.update({
@@ -30,13 +30,61 @@ export async function POST(request: Request) {
 
     // If user is a worker, update worker profile details
     if (updatedUser.workerProfile) {
+      const updateData: any = {};
+      if (locationAddress !== undefined) updateData.locationAddress = locationAddress || null;
+      if (hourlyRate !== undefined) updateData.hourlyRate = hourlyRate ? parseFloat(hourlyRate) : null;
+      
+      if (profession !== undefined) {
+        const professionList = Array.isArray(profession) ? profession : (profession ? [profession] : []);
+        updateData.profession = professionList;
+        updateData.customProfession = customProfession || '';
+        
+        // Derive primary category
+        let catId = null;
+        const primaryProfession = professionList.find(p => p !== 'Others');
+        if (primaryProfession) {
+          const matchingCategory = await prisma.category.findUnique({
+            where: { name: primaryProfession }
+          });
+          if (matchingCategory) {
+            catId = matchingCategory.id;
+          } else {
+            const icons: Record<string, string> = {
+              'Plumbing': '🔧',
+              'Electrical': '⚡',
+              'Cleaning': '✨',
+              'AC Repair': '💨',
+              'Painting': '🎨',
+              'Carpentry': '🔨',
+              'Pest Control': '🐜',
+              'Salon': '✂️',
+            };
+            const icon = icons[primaryProfession] || '🛠️';
+            const newCat = await prisma.category.create({
+              data: {
+                name: primaryProfession,
+                icon,
+                description: `${primaryProfession} Services`
+              }
+            });
+            catId = newCat.id;
+          }
+        }
+        updateData.categoryId = catId;
+
+        // Derive skills
+        let skillsArray = professionList.filter(p => p !== 'Others');
+        if (professionList.includes('Others') && customProfession) {
+          skillsArray.push(customProfession);
+        }
+        updateData.skills = skillsArray;
+      } else if (skills !== undefined) {
+        updateData.skills = skills ? skills.split(',').map((s: string) => s.trim()).filter(Boolean) : [];
+      }
+
       await prisma.workerProfile.update({
         where: { id: updatedUser.workerProfile.id },
-        data: {
-          locationAddress: locationAddress || null,
-          hourlyRate: hourlyRate ? parseFloat(hourlyRate) : null,
-          skills: skills ? skills.split(',').map((s: string) => s.trim()).filter(Boolean) : [],
-        }
+        data: updateData
       });
     }
 

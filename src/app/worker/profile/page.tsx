@@ -2,6 +2,7 @@ import { createClient } from "@/utils/supabase/server";
 import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
 import Link from "next/link";
+import EditProfessions from "@/components/EditProfessions";
 
 export default async function Profile() {
   const supabase = await createClient();
@@ -95,6 +96,13 @@ export default async function Profile() {
           <span className="text-[#CBCDD6] text-base">›</span>
         </div>
       </div>
+
+      {workerProfile && (
+        <EditProfessions 
+          initialProfessions={workerProfile.profession || []} 
+          initialCustomProfession={workerProfile.customProfession || ""} 
+        />
+      )}
 
       {!workerProfile && (
         <div className="mx-4 mt-4 bg-[#F7F7F8] rounded-2xl p-4 shadow-[0_2px_12px_rgba(0,0,0,0.06)] border border-gray-100">
