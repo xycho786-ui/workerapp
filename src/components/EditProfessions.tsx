@@ -122,7 +122,7 @@ export default function EditProfessions({
 
       {/* Edit Professions Slide-up Modal */}
       {isOpen && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+        <div className="fixed inset-0 z-[100] flex items-end justify-center bg-black/40 backdrop-blur-sm p-4 animate-in fade-in duration-200">
           <div className="bg-[#F7F7F8] w-full max-w-md rounded-3xl overflow-hidden shadow-2xl animate-in slide-in-from-bottom-8 duration-300 max-h-[90vh] flex flex-col">
             {/* Modal Header */}
             <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-white">
