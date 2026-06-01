@@ -1,9 +1,50 @@
-export default function CustomerJobsPage() {
+import { createClient } from "@/utils/supabase/server";
+import { prisma } from "@/lib/prisma";
+import { redirect } from "next/navigation";
+import CustomerJobsClient from "./CustomerJobsClient";
+
+export default async function CustomerJobsPage() {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (!user || !user.email) {
+    redirect("/login");
+  }
+
+  const dbUser = await prisma.user.findUnique({
+    where: { email: user.email },
+  });
+
+  if (!dbUser) {
+    redirect("/login");
+  }
+
+  // Fetch bookings for this customer
+  const bookings = await prisma.booking.findMany({
+    where: { customerId: dbUser.id },
+    include: {
+      worker: {
+        include: {
+          user: true,
+        },
+      },
+    },
+    orderBy: { createdAt: "desc" },
+  });
+
+  // Fetch service requests for this customer
+  const requests = await prisma.serviceRequest.findMany({
+    where: { customerId: dbUser.id },
+    orderBy: { createdAt: "desc" },
+  });
+
   return (
-    <div className="flex flex-col h-full bg-[#F7F7F8] p-6 items-center justify-center text-center pb-24">
-      <div className="text-4xl mb-4">💼</div>
-      <h2 className="text-xl font-bold text-[#1A2340] mb-2">My Bookings</h2>
-      <p className="text-[#888BA0]">You have no active bookings right now.</p>
-    </div>
+    <CustomerJobsClient
+      initialBookings={bookings as any}
+      initialRequests={requests as any}
+      userName={dbUser.name}
+      userEmail={dbUser.email}
+    />
   );
 }
+
