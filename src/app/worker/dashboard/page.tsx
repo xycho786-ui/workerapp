@@ -20,28 +20,19 @@ export default async function WorkerDashboardPage() {
     redirect("/login");
   }
 
-  // Fetch open service requests matching worker professions or skills
-  const professions = dbUser.workerProfile.profession || [];
-  const skills = dbUser.workerProfile.skills || [];
-  const searchTerms = Array.from(new Set([...professions, ...skills]));
-
-  let openRequests: any[] = [];
-  if (searchTerms.length > 0) {
-    openRequests = await prisma.serviceRequest.findMany({
-      where: {
-        status: 'OPEN',
-        category: {
-          in: searchTerms
-        }
-      },
-      include: {
-        customer: true
-      },
-      orderBy: {
-        createdAt: 'desc'
-      }
-    });
-  }
+  // Fetch open service requests where this worker is the currently active assignee
+  const openRequests = await prisma.serviceRequest.findMany({
+    where: {
+      status: 'OPEN',
+      assignedWorkerId: dbUser.workerProfile.id
+    },
+    include: {
+      customer: true
+    },
+    orderBy: {
+      createdAt: 'desc'
+    }
+  });
 
   // Fetch all bookings for this worker (including customer details)
   const bookings = await prisma.booking.findMany({

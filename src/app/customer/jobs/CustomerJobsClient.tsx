@@ -26,6 +26,7 @@ import { useLanguage } from "@/context/LanguageContext";
 import Portal from "@/components/Portal";
 import PaymentSheet from "@/components/PaymentSheet";
 import { cancelBooking, cancelServiceRequest, createReview } from "./actions";
+import Image from "next/image";
 
 interface WorkerUser {
   name: string;
@@ -374,9 +375,10 @@ export default function CustomerJobsClient({
                     {/* Worker Info Row */}
                     <div className="flex justify-between items-start mb-3">
                       <div className="flex items-center gap-3">
-                        <img 
+                        <Image 
                           src={getWorkerAvatar(booking.workerId)} 
                           alt={booking.worker.user.name} 
+                          width={44} height={44}
                           className="w-11 h-11 rounded-full object-cover border border-slate-200/50"
                         />
                         <div>
@@ -581,9 +583,10 @@ export default function CustomerJobsClient({
                   >
                     <div className="flex justify-between items-start">
                       <div className="flex items-center gap-3">
-                        <img 
+                        <Image 
                           src={getWorkerAvatar(booking.workerId)} 
                           alt={booking.worker.user.name} 
+                          width={44} height={44}
                           className="w-11 h-11 rounded-full object-cover border border-slate-200/50 filter grayscale"
                         />
                         <div>
@@ -675,9 +678,10 @@ export default function CustomerJobsClient({
                 
                 {/* Worker Card */}
                 <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-[0_2px_8px_rgba(0,0,0,0.01)] flex gap-4">
-                  <img 
+                  <Image 
                     src={getWorkerAvatar(selectedBooking.workerId)} 
                     alt={selectedBooking.worker.user.name} 
+                    width={56} height={56}
                     className="w-14 h-14 rounded-full object-cover border border-slate-200/50"
                   />
                   <div>

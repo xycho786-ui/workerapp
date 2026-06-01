@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import postgres from 'postgres';
 import { createClient } from '@/utils/supabase/server';
 import { prisma } from '@/lib/prisma';
+import { getDistance } from '@/utils/distance';
 
 export async function POST(request: Request) {
   const connectionString = process.env.DATABASE_URL;
@@ -47,6 +48,10 @@ export async function POST(request: Request) {
     const description = formData.get('description') as string;
     const budgetStr = formData.get('budget') as string;
     const budget = budgetStr ? parseFloat(budgetStr) : null;
+    const latitudeStr = formData.get('latitude') as string;
+    const longitudeStr = formData.get('longitude') as string;
+    const latitude = latitudeStr ? parseFloat(latitudeStr) : 40.7128;
+    const longitude = longitudeStr ? parseFloat(longitudeStr) : -74.0060;
     
     if (!category || !description) {
       return NextResponse.json({ message: 'Category and description are required' }, { status: 400 });
@@ -54,10 +59,65 @@ export async function POST(request: Request) {
 
     const requestId = crypto.randomUUID();
     
+    // Find workers whose professions contain the category, and identify the closest one
+    let assignedWorkerId: string | null = null;
+    try {
+      const matchingWorkers = await prisma.workerProfile.findMany({
+        where: {
+          profession: {
+            has: category
+          }
+        },
+        include: {
+          location: true
+        }
+      });
+
+      if (matchingWorkers.length > 0) {
+        // Prioritize online workers first
+        let activeWorkers = matchingWorkers.filter(w => w.isOnline);
+        if (activeWorkers.length === 0) {
+          // Fallback to all matching workers if none are online
+          activeWorkers = matchingWorkers;
+        }
+
+        const workersWithDistance = activeWorkers.map(w => {
+          const lat = w.locationLat ?? w.location?.lat ?? 40.7128;
+          const lng = w.locationLng ?? w.location?.lng ?? -74.0060;
+          const distance = getDistance(latitude, longitude, lat, lng);
+          return { id: w.id, userId: w.userId, distance };
+        });
+
+        // Sort by distance ascending
+        workersWithDistance.sort((a, b) => a.distance - b.distance);
+
+        assignedWorkerId = workersWithDistance[0].id;
+        const assignedWorkerUserId = workersWithDistance[0].userId;
+
+        // Create notification for only the closest worker
+        try {
+          await prisma.notification.create({
+            data: {
+              userId: assignedWorkerUserId,
+              title: "📥 New Service Request",
+              message: `A customer has requested your ${category} service.`,
+              category: "BOOKINGS",
+              relatedId: requestId,
+              type: "INFO"
+            }
+          });
+        } catch (notifErr) {
+          console.error("Failed to notify closest worker:", notifErr);
+        }
+      }
+    } catch (workerSearchErr) {
+      console.error("Failed to search and notify matching workers by distance:", workerSearchErr);
+    }
+
     try {
       await sql`
-        INSERT INTO "ServiceRequest" (id, "customerId", category, description, budget, status, "updatedAt")
-        VALUES (${requestId}, ${customerId}, ${category}, ${description}, ${budget}, 'OPEN', NOW())
+        INSERT INTO "ServiceRequest" (id, "customerId", category, description, budget, status, "updatedAt", latitude, longitude, "assignedWorkerId")
+        VALUES (${requestId}, ${customerId}, ${category}, ${description}, ${budget}, 'OPEN', NOW(), ${latitude}, ${longitude}, ${assignedWorkerId})
       `;
       
       // Create notification for customer
@@ -74,35 +134,6 @@ export async function POST(request: Request) {
         });
       } catch (custNotifErr) {
         console.error("Failed to create customer request notification:", custNotifErr);
-      }
-
-      // Find workers whose professions contain the category, and notify them
-      try {
-        const matchingWorkers = await prisma.workerProfile.findMany({
-          where: {
-            profession: {
-              has: category
-            }
-          },
-          select: {
-            userId: true
-          }
-        });
-
-        for (const worker of matchingWorkers) {
-          await prisma.notification.create({
-            data: {
-              userId: worker.userId,
-              title: "📥 New Service Request",
-              message: `A customer has requested your ${category} service.`,
-              category: "BOOKINGS",
-              relatedId: requestId,
-              type: "INFO"
-            }
-          });
-        }
-      } catch (workerNotifErr) {
-        console.error("Failed to notify matching workers:", workerNotifErr);
       }
 
       // Handle file uploads (Voice, Images, Videos)

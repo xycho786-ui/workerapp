@@ -27,6 +27,24 @@ function RequestFormContent() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
 
+  const [coords, setCoords] = useState<{ latitude: number; longitude: number } | null>(null);
+
+  useEffect(() => {
+    if (typeof window !== "undefined" && navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          setCoords({
+            latitude: position.coords.latitude,
+            longitude: position.coords.longitude,
+          });
+        },
+        (err) => {
+          console.warn("Geolocation access denied or unavailable", err);
+        }
+      );
+    }
+  }, []);
+
   // Audio Recording State
   const [isRecording, setIsRecording] = useState(false);
   const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
@@ -117,6 +135,11 @@ function RequestFormContent() {
       
       // Mock customer ID
       formData.append("customerId", "mock-customer-id");
+
+      const lat = coords?.latitude ?? 40.7128;
+      const lng = coords?.longitude ?? -74.0060;
+      formData.append("latitude", lat.toString());
+      formData.append("longitude", lng.toString());
 
       if (audioBlob) {
         formData.append("media", audioBlob, "voice-note.webm");

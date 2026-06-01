@@ -22,7 +22,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import Portal from "@/components/Portal";
-import { acceptJobRequest, verifyOtpCode, completeBooking } from "./actions";
+import { acceptJobRequest, verifyOtpCode, completeBooking, rejectJobRequest } from "./actions";
 import { useLanguage } from "@/context/LanguageContext";
 
 interface CustomerUser {
@@ -113,9 +113,19 @@ export default function WorkerDashboardClient({
     return avatars[num % avatars.length];
   };
 
-  // Reject Request locally
-  const handleRejectRequest = (requestId: string) => {
-    setIncomingRequests(prev => prev.filter(r => r.id !== requestId));
+  // Reject Request
+  const handleRejectRequest = async (requestId: string) => {
+    if (!confirm("Are you sure you want to reject this job request? It will be routed to the next professional.")) return;
+    setLoadingAction(prev => ({ ...prev, [requestId]: true }));
+    const res = await rejectJobRequest(requestId);
+    setLoadingAction(prev => ({ ...prev, [requestId]: false }));
+    
+    if (res.success) {
+      alert("Job request rejected. It has been routed to the next professional.");
+      setIncomingRequests(prev => prev.filter(r => r.id !== requestId));
+    } else {
+      alert("Failed to reject request: " + res.error);
+    }
   };
 
   // Accept Request

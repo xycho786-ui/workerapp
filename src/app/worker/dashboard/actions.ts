@@ -3,6 +3,7 @@
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/utils/supabase/server";
+import { getDistance } from "@/utils/distance";
 
 export async function acceptJobRequest(requestId: string) {
   try {
@@ -258,6 +259,121 @@ export async function completeBooking(bookingId: string) {
     return { success: true };
   } catch (error: any) {
     console.error("Failed to complete booking:", error);
+    return { success: false, error: error.message };
+  }
+}
+
+export async function rejectJobRequest(requestId: string) {
+  try {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user || !user.email) {
+      throw new Error("Unauthorized");
+    }
+
+    const dbUser = await prisma.user.findUnique({
+      where: { email: user.email },
+      include: { workerProfile: true }
+    });
+
+    if (!dbUser || !dbUser.workerProfile) {
+      throw new Error("Worker profile not found");
+    }
+
+    const workerId = dbUser.workerProfile.id;
+
+    // Fetch the service request
+    const serviceRequest = await prisma.serviceRequest.findUnique({
+      where: { id: requestId },
+      include: { customer: true }
+    });
+
+    if (!serviceRequest) {
+      throw new Error("Service request not found");
+    }
+
+    // Append this worker's ID to rejectedWorkerIds
+    const updatedRejected = Array.from(new Set([...serviceRequest.rejectedWorkerIds, workerId]));
+
+    // Find all matching workers for this category who haven't rejected it
+    const category = serviceRequest.category;
+    const matchingWorkers = await prisma.workerProfile.findMany({
+      where: {
+        profession: {
+          has: category
+        },
+        id: {
+          notIn: updatedRejected
+        }
+      },
+      include: {
+        location: true
+      }
+    });
+
+    let nextWorkerId: string | null = null;
+
+    if (matchingWorkers.length > 0) {
+      // Prioritize online workers first
+      let activeWorkers = matchingWorkers.filter(w => w.isOnline);
+      if (activeWorkers.length === 0) {
+        // Fallback to all matching workers if none are online
+        activeWorkers = matchingWorkers;
+      }
+
+      // Calculate distances using Haversine formula
+      const customerLat = serviceRequest.latitude ?? 40.7128;
+      const customerLng = serviceRequest.longitude ?? -74.0060;
+
+      const workersWithDistance = activeWorkers.map(w => {
+        const lat = w.locationLat ?? w.location?.lat ?? 40.7128;
+        const lng = w.locationLng ?? w.location?.lng ?? -74.0060;
+        const distance = getDistance(customerLat, customerLng, lat, lng);
+        return { id: w.id, userId: w.userId, distance };
+      });
+
+      // Sort by distance ascending
+      workersWithDistance.sort((a, b) => a.distance - b.distance);
+
+      nextWorkerId = workersWithDistance[0].id;
+      const nextWorkerUserId = workersWithDistance[0].userId;
+
+      // Create notification for the next worker
+      try {
+        await prisma.notification.create({
+          data: {
+            userId: nextWorkerUserId,
+            title: "📥 New Service Request",
+            message: `A customer has requested your ${category} service.`,
+            category: "BOOKINGS",
+            relatedId: requestId,
+            type: "INFO"
+          }
+        });
+      } catch (custNotifErr) {
+        console.error("Failed to notify next worker:", custNotifErr);
+      }
+    }
+
+    // Update the request status and tracking
+    await prisma.serviceRequest.update({
+      where: { id: requestId },
+      data: {
+        assignedWorkerId: nextWorkerId,
+        rejectedWorkerIds: updatedRejected
+      }
+    });
+
+    revalidatePath("/worker/dashboard");
+    revalidatePath("/worker/jobs");
+    revalidatePath("/customer/jobs");
+    revalidatePath("/customer/notifications");
+    revalidatePath("/worker/notifications");
+
+    return { success: true };
+  } catch (error: any) {
+    console.error("Failed to reject job:", error);
     return { success: false, error: error.message };
   }
 }

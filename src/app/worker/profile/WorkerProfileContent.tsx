@@ -7,6 +7,7 @@ import {
   Camera, Check, Lock, ChevronRight, Phone, MapPin, Calendar, X, Loader2,
   DollarSign, Clock, Languages, Award, Plus, Trash2, Globe
 } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
 import Portal from "@/components/Portal";
 import { createClient } from "@/utils/supabase/client";
@@ -41,6 +42,7 @@ export default function WorkerProfileContent({ dbUser, handleLogoutAction }: Wor
   const [skillsStr, setSkillsStr] = useState(workerProfile.skills?.join(", ") || "");
   const [languagesStr, setLanguagesStr] = useState(workerProfile.languages?.join(", ") || "English");
   const [workingHours, setWorkingHours] = useState(workerProfile.workingHours || "9:00 AM - 5:00 PM");
+  const [professions, setProfessions] = useState<string[]>(workerProfile.profession || []);
   
   const [editLoading, setEditLoading] = useState(false);
   const [editError, setEditError] = useState<string | null>(null);
@@ -196,7 +198,6 @@ export default function WorkerProfileContent({ dbUser, handleLogoutAction }: Wor
     setEditSuccess(false);
 
     try {
-      const skillsArray = skillsStr.split(",").map((s: string) => s.trim()).filter(Boolean);
       const languagesArray = languagesStr.split(",").map((l: string) => l.trim()).filter(Boolean);
 
       const res = await fetch("/api/profile/update", {
@@ -209,7 +210,7 @@ export default function WorkerProfileContent({ dbUser, handleLogoutAction }: Wor
           experience: parseInt(experience) || 0,
           hourlyRate: parseFloat(hourlyRate) || 0,
           locationAddress,
-          skills: skillsArray.join(", "), // compatible with API expectation
+          profession: professions,
           languages: languagesArray,
           workingHours
         }),
@@ -306,10 +307,11 @@ export default function WorkerProfileContent({ dbUser, handleLogoutAction }: Wor
           <div className="relative group">
             <div className="w-18 h-18 rounded-2xl overflow-hidden bg-gradient-to-br from-primary-light to-primary flex items-center justify-center border-4 border-white shadow-xl shadow-primary/10 relative">
               {profileImage ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img 
+                <Image 
                   src={profileImage} 
                   alt="Profile" 
+                  width={112}
+                  height={112}
                   className="w-full h-full object-cover"
                 />
               ) : (
@@ -1008,15 +1010,33 @@ export default function WorkerProfileContent({ dbUser, handleLogoutAction }: Wor
                   />
                 </div>
 
-                <div className="space-y-1">
-                  <label className="text-xs font-bold text-slate-500">Skills (Comma separated)</label>
-                  <input
-                    type="text"
-                    value={skillsStr}
-                    onChange={(e) => setSkillsStr(e.target.value)}
-                    placeholder="e.g. Pipe Repair, Tap Installation"
-                    className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50/50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#F08080]/20 focus:border-[#F08080] text-xs font-semibold text-slate-800 transition-all"
-                  />
+                <div className="space-y-1 bg-white p-4 rounded-2xl border border-slate-100 shadow-sm">
+                  <label className="text-xs font-bold text-slate-500 block mb-2">Category / Professions (Select all that apply)</label>
+                  <div className="flex flex-wrap gap-2 pt-1">
+                    {["Plumbing", "Electrical", "Cleaning", "AC Repair", "Painting", "Carpentry", "Pest Control", "Salon"].map((cat) => {
+                      const isSelected = professions.includes(cat);
+                      return (
+                        <button
+                          key={cat}
+                          type="button"
+                          onClick={() => {
+                            if (isSelected) {
+                              setProfessions(professions.filter(p => p !== cat));
+                            } else {
+                              setProfessions([...professions, cat]);
+                            }
+                          }}
+                          className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition-all ${
+                            isSelected
+                              ? "bg-[#F08080] text-white border-transparent shadow-sm"
+                              : "bg-slate-50 border-slate-200/60 text-slate-650 hover:bg-slate-100"
+                          }`}
+                        >
+                          {cat}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">

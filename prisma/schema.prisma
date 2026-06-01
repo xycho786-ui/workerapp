@@ -245,6 +245,11 @@ model ServiceRequest {
   status      RequestStatus @default(OPEN)
   media       Media[]
   
+  latitude          Float?
+  longitude         Float?
+  assignedWorkerId  String?
+  rejectedWorkerIds String[] @default([])
+  
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 }

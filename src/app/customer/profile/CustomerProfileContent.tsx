@@ -6,6 +6,7 @@ import {
   User, Settings, Briefcase, Heart, Star, Bell, HelpCircle, Info,
   Camera, Check, Lock, ChevronRight, Phone, MapPin, Calendar, X, Loader2 
 } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
 import { useLanguage } from "@/context/LanguageContext";
 import Portal from "@/components/Portal";
@@ -215,10 +216,11 @@ export default function CustomerProfileContent({
           <div className="relative group">
             <div className="w-20 h-20 rounded-2xl overflow-hidden bg-gradient-to-br from-primary-light to-primary flex items-center justify-center border-4 border-white shadow-xl shadow-primary/10 relative">
               {profileImage ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img 
+                <Image 
                   src={profileImage} 
                   alt="Profile" 
+                  width={80}
+                  height={80}
                   className="w-full h-full object-cover"
                 />
               ) : (
@@ -430,7 +432,7 @@ export default function CustomerProfileContent({
                         <div className="w-10 h-10 rounded-xl bg-slate-100 overflow-hidden flex items-center justify-center text-slate-400 font-bold border border-slate-100">
                           {worker.user.image ? (
                             // eslint-disable-next-line @next/next/no-img-element
-                            <img src={worker.user.image} alt={worker.user.name} className="w-full h-full object-cover" />
+                            <Image src={worker.user.image} alt={worker.user.name} width={40} height={40} className="w-full h-full object-cover" />
                           ) : (
                             worker.user.name.substring(0, 2).toUpperCase()
                           )}
@@ -473,7 +475,7 @@ export default function CustomerProfileContent({
                         <div className="w-12 h-12 rounded-xl bg-slate-100 overflow-hidden flex items-center justify-center font-black text-slate-400 border border-slate-200/50">
                           {worker.user.image ? (
                             // eslint-disable-next-line @next/next/no-img-element
-                            <img src={worker.user.image} alt={worker.user.name} className="w-full h-full object-cover" />
+                            <Image src={worker.user.image} alt={worker.user.name} width={48} height={48} className="w-full h-full object-cover" />
                           ) : (
                             nameInitials
                           )}

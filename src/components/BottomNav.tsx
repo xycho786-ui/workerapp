@@ -32,6 +32,7 @@ export default function BottomNav() {
           <Link
             key={item.name}
             href={item.href}
+            prefetch={true}
             className={clsx(
               "flex flex-col items-center justify-center min-w-[56px] py-1 cursor-pointer",
               isActive ? "text-[#E8514A]" : "text-[#888BA0]"

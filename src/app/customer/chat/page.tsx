@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useRef, useState, Suspense } from 'react';
+import Image from 'next/image';
 import { useSearchParams, useRouter } from 'next/navigation';
+import { useDebounce } from "@/hooks/useDebounce";
 import { 
   Send, 
   User, 
@@ -211,11 +213,23 @@ function CustomerChatContent() {
     return matchesSearch;
   });
 
-  if (authLoading || (bookingId && isLoadingStatus && !bookingStatus)) {
+  // 1. If bookingId is provided and we are loading status
+  if (bookingId && (authLoading || (isLoadingStatus && !bookingStatus))) {
     return (
-      <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-6 text-center">
-        <Loader2 className="animate-spin text-[#E8514A] mb-3" size={24} />
-        <p className="text-xs text-slate-400 font-bold">Connecting to chat service...</p>
+      <div className="min-h-screen bg-slate-50 flex flex-col p-4 animate-pulse">
+        <div className="flex items-center gap-3 mb-6 mt-4">
+          <div className="w-10 h-10 bg-slate-200 rounded-full" />
+          <div className="flex-1">
+            <div className="h-4 bg-slate-200 rounded w-1/3 mb-2" />
+            <div className="h-3 bg-slate-200 rounded w-1/4" />
+          </div>
+        </div>
+        <div className="flex-1 space-y-4">
+          <div className="h-12 bg-slate-200 rounded-2xl w-3/4 max-w-sm self-end ml-auto" />
+          <div className="h-16 bg-slate-200 rounded-2xl w-3/4 max-w-sm" />
+          <div className="h-12 bg-slate-200 rounded-2xl w-2/4 max-w-sm self-end ml-auto" />
+        </div>
+        <div className="h-16 bg-white border border-slate-200 rounded-2xl mt-4" />
       </div>
     );
   }
@@ -408,10 +422,21 @@ function CustomerChatContent() {
           </div>
         )}
 
-        {isLoadingSessions ? (
-          <div className="flex flex-col items-center justify-center p-12 text-center text-slate-400">
-            <Loader2 className="animate-spin text-[#E8514A] mb-3" size={24} />
-            <p className="text-xs font-bold">{t("chatPage.loadingMessages")}</p>
+        {isLoadingSessions || authLoading ? (
+          <div className="space-y-2.5 mt-2 animate-pulse">
+            {[1, 2, 3, 4].map((i) => (
+              <div key={i} className="bg-white rounded-2xl p-4 border border-slate-100 flex items-center gap-3.5">
+                <div className="w-11 h-11 bg-slate-200 rounded-full flex-shrink-0" />
+                <div className="flex-1">
+                  <div className="flex justify-between items-baseline mb-2">
+                    <div className="h-3 bg-slate-200 rounded w-1/3" />
+                    <div className="h-2 bg-slate-200 rounded w-1/6" />
+                  </div>
+                  <div className="h-3 bg-slate-200 rounded w-3/4 mb-2" />
+                  <div className="h-2 bg-slate-200 rounded w-1/4" />
+                </div>
+              </div>
+            ))}
           </div>
         ) : filteredSessions.length === 0 ? (
           <div className="bg-white rounded-3xl p-8 border border-slate-100 shadow-[0_4px_16px_rgba(0,0,0,0.01)] text-center flex flex-col items-center justify-center pt-16 pb-16">
@@ -443,9 +468,11 @@ function CustomerChatContent() {
 
                   {/* Avatar */}
                   <div className="relative flex-shrink-0">
-                    <img 
+                    <Image 
                       src={avatarUrl} 
                       alt={session.participant.name} 
+                      width={44}
+                      height={44}
                       className={`w-11 h-11 rounded-full object-cover border border-slate-100 shadow-sm ${!isActive ? 'grayscale opacity-75' : ''}`}
                     />
                     {isActive && (

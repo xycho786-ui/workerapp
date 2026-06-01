@@ -26,9 +26,16 @@ export default function WorkerBottomNav() {
         const res = await fetch("/api/notifications/unread-counts");
         if (res.ok) {
           const data = await res.json();
-          setUnreadCounts({
-            unreadNotificationsCount: data.unreadNotificationsCount || 0,
-            unreadMessagesCount: data.unreadMessagesCount || 0
+          setUnreadCounts(prev => {
+            const nextNotifications = data.unreadNotificationsCount || 0;
+            const nextMessages = data.unreadMessagesCount || 0;
+            if (prev.unreadNotificationsCount === nextNotifications && prev.unreadMessagesCount === nextMessages) {
+              return prev; // Prevent React re-render
+            }
+            return {
+              unreadNotificationsCount: nextNotifications,
+              unreadMessagesCount: nextMessages
+            };
           });
         }
       } catch (e) {
@@ -56,6 +63,7 @@ export default function WorkerBottomNav() {
           <Link
             key={item.key}
             href={item.href}
+            prefetch={true}
             className={clsx(
               "flex flex-col items-center justify-center min-w-[56px] py-1 cursor-pointer",
               isActive ? "text-[#E8514A]" : "text-[#888BA0]"
