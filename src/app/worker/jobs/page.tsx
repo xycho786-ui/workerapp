@@ -1,44 +1,76 @@
-"use client";
+import { createClient } from "@/utils/supabase/server";
+import { prisma } from "@/lib/prisma";
+import { redirect } from "next/navigation";
+import WorkerDashboardClient from "../dashboard/WorkerDashboardClient";
 
-import Link from "next/link";
-import { useState } from "react";
+export default async function WorkerJobsPage() {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
 
-export default function JobsPage() {
-  const [activeTab, setActiveTab] = useState("Opportunity Details");
+  if (!user || !user.email) {
+    redirect("/login");
+  }
+
+  const dbUser = await prisma.user.findUnique({
+    where: { email: user.email },
+    include: { workerProfile: true }
+  });
+
+  if (!dbUser || !dbUser.workerProfile) {
+    redirect("/login");
+  }
+
+  // Fetch open service requests matching worker professions or skills
+  const professions = dbUser.workerProfile.profession || [];
+  const skills = dbUser.workerProfile.skills || [];
+  const searchTerms = Array.from(new Set([...professions, ...skills]));
+
+  let openRequests: any[] = [];
+  if (searchTerms.length > 0) {
+    openRequests = await prisma.serviceRequest.findMany({
+      where: {
+        status: 'OPEN',
+        category: {
+          in: searchTerms
+        }
+      },
+      include: {
+        customer: true
+      },
+      orderBy: {
+        createdAt: 'desc'
+      }
+    });
+  }
+
+  // Fetch all bookings for this worker (including customer details)
+  const bookings = await prisma.booking.findMany({
+    where: { workerId: dbUser.workerProfile.id },
+    include: {
+      customer: true
+    },
+    orderBy: { createdAt: 'desc' }
+  });
+
+  // Fetch recent customer reviews left for this worker
+  const reviews = await prisma.review.findMany({
+    where: { workerId: dbUser.workerProfile.id },
+    include: {
+      reviewer: true
+    },
+    orderBy: { createdAt: 'desc' },
+    take: 5
+  });
 
   return (
-    <div className="flex flex-col h-full bg-[#F7F7F8] font-sans pb-24">
-      <div className="flex border-b-2 border-[#F0F0F0] bg-white">
-        <span className="px-4 py-3.5 cursor-pointer text-[#E8514A] font-bold">←</span>
-        {["Opportunity Details", "PRO-CONNECT"].map((t, i) => (
-          <div 
-            key={i} 
-            onClick={() => setActiveTab(t)}
-            className={`flex-1 py-3.5 text-center font-bold text-[13px] cursor-pointer -mb-0.5 ${
-              activeTab === t 
-                ? "text-[#E8514A] border-b-2 border-[#E8514A]" 
-                : "text-[#888BA0] border-b-2 border-transparent"
-            }`}
-          >
-            {t}
-          </div>
-        ))}
-      </div>
-
-      {activeTab === "Opportunity Details" && (
-        <div className="flex flex-col items-center justify-center pt-32 px-6 text-center">
-          <div className="text-5xl mb-4 text-[#888BA0] opacity-50">📋</div>
-          <div className="text-[16px] font-bold text-[#1A2340] mb-2">No jobs available yet</div>
-          <div className="text-[14px] text-[#888BA0] leading-relaxed">
-            When you accept a new opportunity, all the details, location, and client information will appear here.
-          </div>
-        </div>
-      )}
-      {activeTab === "PRO-CONNECT" && (
-        <div className="p-8 text-center text-[#888BA0] text-sm">
-          Connect directly with the client for initial negotiation.
-        </div>
-      )}
-    </div>
+    <WorkerDashboardClient
+      workerProfile={dbUser.workerProfile as any}
+      userName={dbUser.name}
+      userEmail={dbUser.email}
+      openRequests={openRequests as any}
+      bookings={bookings as any}
+      reviews={reviews as any}
+    />
   );
 }
+
