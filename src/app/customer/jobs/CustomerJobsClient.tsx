@@ -34,11 +34,14 @@ interface WorkerProfile {
   rating: number;
   experience: number;
   profession: string[];
+  totalReviews: number;
   user: WorkerUser;
 }
 
 interface Booking {
   id: string;
+  customerId: string;
+  workerId: string;
   status: "PENDING" | "ACCEPTED" | "REJECTED" | "IN_PROGRESS" | "COMPLETED" | "CANCELLED";
   jobDetails: string;
   price: number | null;
