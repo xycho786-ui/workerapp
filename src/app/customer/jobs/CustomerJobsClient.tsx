@@ -18,10 +18,13 @@ import {
   ArrowRight,
   TrendingUp,
   MapPin,
-  Sparkles
+  Sparkles,
+  CreditCard
 } from "lucide-react";
 import Link from "next/link";
+import { useLanguage } from "@/context/LanguageContext";
 import Portal from "@/components/Portal";
+import PaymentSheet from "@/components/PaymentSheet";
 import { cancelBooking, cancelServiceRequest, createReview } from "./actions";
 
 interface WorkerUser {
@@ -42,7 +45,7 @@ interface Booking {
   id: string;
   customerId: string;
   workerId: string;
-  status: "PENDING" | "ACCEPTED" | "REJECTED" | "IN_PROGRESS" | "COMPLETED" | "CANCELLED";
+  status: "PENDING" | "ACCEPTED" | "REJECTED" | "IN_PROGRESS" | "COMPLETED" | "CANCELLED" | "AWAITING_PAYMENT" | "PAYMENT_COMPLETED";
   jobDetails: string;
   price: number | null;
   scheduledAt: Date | null;
@@ -74,6 +77,7 @@ export default function CustomerJobsClient({
   userName,
   userEmail,
 }: CustomerJobsClientProps) {
+  const { t } = useLanguage();
   const [bookings, setBookings] = useState<Booking[]>(initialBookings);
   const [requests, setRequests] = useState<ServiceRequest[]>(initialRequests);
   
@@ -85,6 +89,7 @@ export default function CustomerJobsClient({
   const [reviewComment, setReviewComment] = useState("");
   const [isSubmittingReview, setIsSubmittingReview] = useState(false);
   const [copiedOtp, setCopiedOtp] = useState<string | null>(null);
+  const [paymentBooking, setPaymentBooking] = useState<Booking | null>(null);
   
   // Filters or tabs
   const [activeTab, setActiveTab] = useState<"all" | "active" | "completed">("all");
@@ -120,11 +125,11 @@ export default function CustomerJobsClient({
   const activeRequests = requests.filter(r => r.status === "OPEN");
   
   const activeBookings = bookings.filter(
-    b => b.status === "PENDING" || b.status === "ACCEPTED" || b.status === "IN_PROGRESS"
+    b => b.status === "PENDING" || b.status === "ACCEPTED" || b.status === "IN_PROGRESS" || b.status === "AWAITING_PAYMENT"
   );
   
   const completedBookings = bookings.filter(
-    b => b.status === "COMPLETED" || b.status === "CANCELLED" || b.status === "REJECTED"
+    b => b.status === "COMPLETED" || b.status === "CANCELLED" || b.status === "REJECTED" || b.status === "PAYMENT_COMPLETED"
   );
 
   const totalActiveCount = activeRequests.length + activeBookings.length;
@@ -204,7 +209,7 @@ export default function CustomerJobsClient({
 
       {/* 2. Headline & Overview */}
       <div className="px-5 pt-6 pb-4">
-        <h2 className="text-[22px] font-black text-[#1A2340] tracking-tight">My Jobs</h2>
+        <h2 className="text-[22px] font-black text-[#1A2340] tracking-tight">{t("jobsPage.myJobs")}</h2>
         <p className="text-[13px] text-[#888BA0] font-medium mt-1 leading-normal">
           Manage your service requests, track active workers, and rate past experiences.
         </p>
@@ -220,19 +225,19 @@ export default function CustomerJobsClient({
               <Sparkles size={16} />
             </div>
           </div>
-          <h3 className="text-lg font-extrabold text-[#1A2340] mb-2">No Active Jobs Yet</h3>
+          <h3 className="text-lg font-extrabold text-[#1A2340] mb-2">{t("jobsPage.noActiveJobs")}</h3>
           <p className="text-[13px] text-[#888BA0] max-w-[280px] leading-relaxed mb-6 font-medium">
             You haven't booked any services yet. Browse trusted professionals and get started.
           </p>
           <div className="flex gap-3 w-full max-w-xs">
             <Link 
-              href="/customer/explore" 
+              href="/customer/dashboard" 
               className="flex-1 py-3 bg-[#E8514A] hover:bg-[#E8514A]/90 text-white font-bold rounded-xl text-xs text-center transition-all shadow-md shadow-[#E8514A]/10 active:scale-[0.98]"
             >
               Browse Services
             </Link>
             <Link 
-              href="/customer/explore" 
+              href="/customer/dashboard" 
               className="flex-1 py-3 bg-white border border-[#E8514A]/20 text-[#E8514A] hover:bg-red-50/50 font-bold rounded-xl text-xs text-center transition-all active:scale-[0.98]"
             >
               Find Workers
@@ -271,7 +276,7 @@ export default function CustomerJobsClient({
                       </div>
                       <div>
                         <h4 className="font-extrabold text-[#1A2340] text-[15px]">{req.category}</h4>
-                        <p className="text-[11px] text-[#888BA0] font-semibold mt-0.5">Searching for nearby Pros...</p>
+                        <p className="text-[11px] text-[#888BA0] font-semibold mt-0.5">{t("jobsPage.searchingNearby")}</p>
                       </div>
                     </div>
                     <span className="bg-blue-50 text-blue-600 rounded-full px-3 py-1.5 text-[10px] font-extrabold uppercase tracking-wide border border-blue-100/50">
@@ -291,31 +296,31 @@ export default function CustomerJobsClient({
                         <div className="w-5 h-5 rounded-full bg-blue-500 border-[3px] border-white flex items-center justify-center shadow-sm">
                           <div className="w-1.5 h-1.5 rounded-full bg-white"></div>
                         </div>
-                        <span className="text-[10px] font-bold text-[#1A2340] mt-2">Sent</span>
+                        <span className="text-[10px] font-bold text-[#1A2340] mt-2">{t("jobsPage.sent")}</span>
                       </div>
                       
                       {/* Step 2: Accepted */}
                       <div className="flex flex-col items-center">
                         <div className="w-5 h-5 rounded-full bg-slate-200 border-[3px] border-white flex items-center justify-center shadow-sm"></div>
-                        <span className="text-[10px] font-semibold text-slate-400 mt-2">Accepted</span>
+                        <span className="text-[10px] font-semibold text-slate-400 mt-2">{t("jobsPage.accepted")}</span>
                       </div>
 
                       {/* Step 3: Verify */}
                       <div className="flex flex-col items-center">
                         <div className="w-5 h-5 rounded-full bg-slate-200 border-[3px] border-white flex items-center justify-center shadow-sm"></div>
-                        <span className="text-[10px] font-semibold text-slate-400 mt-2">Verify</span>
+                        <span className="text-[10px] font-semibold text-slate-400 mt-2">{t("jobsPage.verify")}</span>
                       </div>
 
                       {/* Step 4: Active */}
                       <div className="flex flex-col items-center">
                         <div className="w-5 h-5 rounded-full bg-slate-200 border-[3px] border-white flex items-center justify-center shadow-sm"></div>
-                        <span className="text-[10px] font-semibold text-slate-400 mt-2">Active</span>
+                        <span className="text-[10px] font-semibold text-slate-400 mt-2">{t("jobsPage.active")}</span>
                       </div>
 
                       {/* Step 5: Done */}
                       <div className="flex flex-col items-center">
                         <div className="w-5 h-5 rounded-full bg-slate-200 border-[3px] border-white flex items-center justify-center shadow-sm"></div>
-                        <span className="text-[10px] font-semibold text-slate-400 mt-2">Done</span>
+                        <span className="text-[10px] font-semibold text-slate-400 mt-2">{t("jobsPage.done")}</span>
                       </div>
                     </div>
                   </div>
@@ -344,6 +349,7 @@ export default function CustomerJobsClient({
                 const otp = getBookingOtp(booking.id);
                 const isAccepted = booking.status === "ACCEPTED" || booking.status === "PENDING";
                 const isInProgress = booking.status === "IN_PROGRESS";
+                const isAwaitingPayment = booking.status === "AWAITING_PAYMENT";
                 const isCopied = copiedOtp === booking.id;
                 const formattedDate = booking.scheduledAt 
                   ? new Date(booking.scheduledAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })
@@ -385,9 +391,11 @@ export default function CustomerJobsClient({
                       <span className={`rounded-full px-3 py-1.5 text-[10px] font-extrabold uppercase tracking-wide ${
                         isInProgress 
                           ? "bg-emerald-50 text-emerald-600 border border-emerald-100/50" 
+                          : isAwaitingPayment
+                          ? "bg-amber-50 text-amber-600 border border-amber-100/50 animate-pulse"
                           : "bg-indigo-50 text-indigo-700 border border-indigo-100/50"
                       }`}>
-                        {isInProgress ? "IN PROGRESS" : "WAITING FOR OTP"}
+                        {isInProgress ? t("jobsPage.inProgress") : isAwaitingPayment ? "Awaiting Payment" : t("jobsPage.waitingOtp")}
                       </span>
                     </div>
 
@@ -450,7 +458,7 @@ export default function CustomerJobsClient({
                           }`}>
                             <Check size={9} className="stroke-[3]" />
                           </div>
-                          <span className="text-[10px] font-bold text-slate-700 mt-2">Sent</span>
+                          <span className="text-[10px] font-bold text-slate-700 mt-2">{t("jobsPage.sent")}</span>
                         </div>
                         
                         {/* 2. Accepted */}
@@ -460,7 +468,7 @@ export default function CustomerJobsClient({
                           }`}>
                             <Check size={9} className="stroke-[3]" />
                           </div>
-                          <span className="text-[10px] font-bold text-slate-700 mt-2">Accepted</span>
+                          <span className="text-[10px] font-bold text-slate-700 mt-2">{t("jobsPage.accepted")}</span>
                         </div>
 
                         {/* 3. Verify */}
@@ -474,7 +482,7 @@ export default function CustomerJobsClient({
                               <Check size={9} className="stroke-[3]" />
                             </div>
                           )}
-                          <span className="text-[10px] font-bold text-slate-700 mt-2">Verify</span>
+                          <span className="text-[10px] font-bold text-slate-700 mt-2">{t("jobsPage.verify")}</span>
                         </div>
 
                         {/* 4. Active */}
@@ -486,20 +494,30 @@ export default function CustomerJobsClient({
                           ) : (
                             <div className="w-5 h-5 rounded-full bg-slate-200 border-[3px] border-white flex items-center justify-center shadow-sm"></div>
                           )}
-                          <span className="text-[10px] font-bold text-slate-700 mt-2">Active</span>
+                          <span className="text-[10px] font-bold text-slate-700 mt-2">{t("jobsPage.active")}</span>
                         </div>
 
                         {/* 5. Done */}
                         <div className="flex flex-col items-center">
                           <div className="w-5 h-5 rounded-full bg-slate-200 border-[3px] border-white flex items-center justify-center shadow-sm"></div>
-                          <span className="text-[10px] font-semibold text-slate-400 mt-2">Done</span>
+                          <span className="text-[10px] font-semibold text-slate-400 mt-2">{t("jobsPage.done")}</span>
                         </div>
                       </div>
                     </div>
 
                     {/* Actions */}
                     <div className="flex gap-3 mt-2">
-                      {isAccepted ? (
+                      {isAwaitingPayment ? (
+                        <>
+                          <button 
+                            onClick={() => setPaymentBooking(booking)}
+                            className="flex-1 py-3 bg-[#1A2340] hover:bg-[#2D3F6A] text-white font-bold rounded-xl text-xs transition-colors flex items-center justify-center gap-1.5 active:scale-[0.98] shadow-lg shadow-[#1A2340]/20"
+                          >
+                            <CreditCard size={14} />
+                            Pay ₹{(booking.price || 0) + 25} Now
+                          </button>
+                        </>
+                      ) : isAccepted ? (
                         <>
                           <Link 
                             href={`/customer/chat?bookingId=${booking.id}`}
@@ -618,7 +636,7 @@ export default function CustomerJobsClient({
                       )}
                       
                       <Link 
-                        href={`/customer/explore?search=${booking.worker.profession[0] || ""}`}
+                        href={`/customer/dashboard?search=${booking.worker.profession[0] || ""}`}
                         className={`py-3 bg-[#1A2340] hover:bg-[#2D3F6A] text-white font-extrabold rounded-xl text-xs text-center transition-colors active:scale-[0.98] shadow-sm shadow-[#1A2340]/10 ${
                           isCancelled ? "flex-1" : "flex-1"
                         }`}
@@ -643,7 +661,7 @@ export default function CustomerJobsClient({
               
               {/* Modal Header */}
               <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-white">
-                <h3 className="font-extrabold text-[#1A2340] text-[16px]">Booking Details</h3>
+                <h3 className="font-extrabold text-[#1A2340] text-[16px]">{t("jobsPage.bookingDetails")}</h3>
                 <button 
                   onClick={() => setSelectedBooking(null)}
                   className="p-1.5 bg-slate-50 hover:bg-slate-100 rounded-full text-slate-400 hover:text-slate-600 border border-slate-200/60 shadow-sm transition-colors"
@@ -678,7 +696,7 @@ export default function CustomerJobsClient({
                 {/* Job Info */}
                 <div className="space-y-4 bg-white p-5 rounded-2xl border border-slate-100">
                   <div>
-                    <label className="text-[10px] text-slate-400 font-bold uppercase tracking-wide block">Job Requirements</label>
+                    <label className="text-[10px] text-slate-400 font-bold uppercase tracking-wide block">{t("jobsPage.jobRequirements")}</label>
                     <p className="text-sm text-slate-800 leading-relaxed font-semibold mt-1 bg-slate-50/50 p-3 rounded-xl border border-slate-100">
                       {selectedBooking.jobDetails}
                     </p>
@@ -686,7 +704,7 @@ export default function CustomerJobsClient({
 
                   <div className="grid grid-cols-2 gap-4 pt-1">
                     <div>
-                      <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wide block">Scheduled For</span>
+                      <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wide block">{t("jobsPage.scheduledFor")}</span>
                       <span className="text-xs font-bold text-slate-800 mt-1 block">
                         {selectedBooking.scheduledAt 
                           ? new Date(selectedBooking.scheduledAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
@@ -695,15 +713,15 @@ export default function CustomerJobsClient({
                       </span>
                     </div>
                     <div>
-                      <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wide block">Estimated Cost</span>
+                      <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wide block">{t("jobsPage.estimatedCost")}</span>
                       <span className="text-xs font-bold text-[#E8514A] mt-1 block">
-                        {selectedBooking.price ? `₹${selectedBooking.price}` : "Hourly Rate / Custom"}
+                        {selectedBooking.price ? `₹${selectedBooking.price}` : t("jobsPage.hourlyRateCustom")}
                       </span>
                     </div>
                   </div>
 
                   <div className="pt-1">
-                    <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wide block">Current Status</span>
+                    <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wide block">{t("jobsPage.currentStatus")}</span>
                     <span className="inline-block mt-1.5 bg-[#FFF5F5] text-[#E8514A] rounded-full px-3 py-1 text-xs font-extrabold uppercase border border-[#E8514A10]">
                       {selectedBooking.status}
                     </span>
@@ -743,7 +761,7 @@ export default function CustomerJobsClient({
               
               {/* Modal Header */}
               <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-white">
-                <h3 className="font-extrabold text-[#1A2340] text-[16px]">Service Request Details</h3>
+                <h3 className="font-extrabold text-[#1A2340] text-[16px]">{t("jobsPage.serviceRequestDetails")}</h3>
                 <button 
                   onClick={() => setSelectedRequest(null)}
                   className="p-1.5 bg-slate-50 hover:bg-slate-100 rounded-full text-slate-400 hover:text-slate-600 border border-slate-200/60 shadow-sm transition-colors"
@@ -758,14 +776,14 @@ export default function CustomerJobsClient({
                 {/* Details Card */}
                 <div className="bg-white p-5 rounded-2xl border border-slate-100 space-y-4">
                   <div>
-                    <label className="text-[10px] text-slate-400 font-bold uppercase tracking-wide block">Service Category</label>
+                    <label className="text-[10px] text-slate-400 font-bold uppercase tracking-wide block">{t("jobsPage.serviceCategory")}</label>
                     <span className="text-sm font-extrabold text-[#1A2340] mt-1 block">
                       {selectedRequest.category}
                     </span>
                   </div>
 
                   <div>
-                    <label className="text-[10px] text-slate-400 font-bold uppercase tracking-wide block">Task Description</label>
+                    <label className="text-[10px] text-slate-400 font-bold uppercase tracking-wide block">{t("jobsPage.taskDescription")}</label>
                     <p className="text-xs text-slate-600 leading-relaxed font-semibold mt-1 bg-slate-50/50 p-3 rounded-xl border border-slate-100">
                       {selectedRequest.description}
                     </p>
@@ -773,15 +791,15 @@ export default function CustomerJobsClient({
 
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wide block">Posted On</span>
+                      <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wide block">{t("jobsPage.postedOn")}</span>
                       <span className="text-xs font-bold text-slate-800 mt-1 block">
                         {new Date(selectedRequest.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
                       </span>
                     </div>
                     <div>
-                      <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wide block">Max Budget</span>
+                      <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wide block">{t("jobsPage.maxBudget")}</span>
                       <span className="text-xs font-bold text-emerald-600 mt-1 block">
-                        {selectedRequest.budget ? `₹${selectedRequest.budget}` : "No preference"}
+                        {selectedRequest.budget ? `₹${selectedRequest.budget}` : t("jobsPage.noPreference")}
                       </span>
                     </div>
                   </div>
@@ -818,7 +836,7 @@ export default function CustomerJobsClient({
               
               {/* Modal Header */}
               <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-white">
-                <h3 className="font-extrabold text-[#1A2340] text-[16px]">Rate Experience</h3>
+                <h3 className="font-extrabold text-[#1A2340] text-[16px]">{t("jobsPage.rateExperience")}</h3>
                 <button 
                   onClick={() => setRatingWorkerId(null)}
                   className="p-1.5 bg-slate-50 hover:bg-slate-100 rounded-full text-slate-400 hover:text-slate-600 border border-slate-200/60 shadow-sm transition-colors"
@@ -832,7 +850,7 @@ export default function CustomerJobsClient({
                 <div className="text-4xl">🌟</div>
                 <div>
                   <h4 className="font-bold text-[#1A2340] text-base">How was your service?</h4>
-                  <p className="text-xs text-slate-500 font-medium mt-1">Your rating helps other clients hire the best pros.</p>
+                  <p className="text-xs text-slate-500 font-medium mt-1">{t("jobsPage.ratingHelpMsg")}</p>
                 </div>
 
                 {/* Rating selection (Stars) */}
@@ -853,11 +871,11 @@ export default function CustomerJobsClient({
 
                 {/* Comment Text Area */}
                 <div className="text-left space-y-1.5">
-                  <label className="text-xs font-semibold text-slate-500">Write a brief comment (optional)</label>
+                  <label className="text-xs font-semibold text-slate-500">{t("jobsPage.writeComment")}</label>
                   <textarea
                     value={reviewComment}
                     onChange={(e) => setReviewComment(e.target.value)}
-                    placeholder="Describe your experience with the service provider..."
+                    placeholder={t("jobsPage.commentPlaceholder")}
                     rows={4}
                     className="w-full px-4 py-3.5 rounded-2xl border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-[#E8514A]/20 focus:border-[#E8514A] transition-all text-xs font-semibold text-slate-800 resize-none leading-relaxed placeholder:text-slate-400"
                   />
@@ -877,12 +895,32 @@ export default function CustomerJobsClient({
                   disabled={isSubmittingReview}
                   className="flex-1 py-3 bg-[#E8514A] hover:bg-[#E8514A]/90 text-white font-bold rounded-xl text-sm transition-colors active:scale-[0.98] shadow-md shadow-[#E8514A]/20 flex items-center justify-center gap-2 disabled:opacity-75"
                 >
-                  {isSubmittingReview ? "Submitting..." : "Submit Review"}
+                  {isSubmittingReview ? t("jobsPage.submitting") : t("jobsPage.submitReview")}
                 </button>
               </div>
 
             </div>
           </div>
+        </Portal>
+      )}
+      {/* Payment Sheet Modal */}
+      {paymentBooking && (
+        <Portal>
+          <PaymentSheet
+            isOpen={!!paymentBooking}
+            onClose={() => setPaymentBooking(null)}
+            bookingId={paymentBooking.id}
+            workerName={paymentBooking.worker.user.name}
+            serviceCategory={paymentBooking.jobDetails}
+            serviceCharge={paymentBooking.price || 0}
+            onSuccess={() => {
+              // Update local state to reflect payment success
+              setBookings(prev => 
+                prev.map(b => b.id === paymentBooking.id ? { ...b, status: "PAYMENT_COMPLETED" } : b)
+              );
+              setPaymentBooking(null);
+            }}
+          />
         </Portal>
       )}
 

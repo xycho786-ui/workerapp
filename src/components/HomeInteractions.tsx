@@ -26,7 +26,7 @@ export default function HomeInteractions({ userName, userEmail }: { userName?: s
       } else {
         params.delete("search");
       }
-      router.push(`/customer/explore?${params.toString()}`);
+      router.push(`/customer/dashboard?${params.toString()}`);
     }, 500);
 
     return () => clearTimeout(delayDebounceFn);
@@ -35,7 +35,7 @@ export default function HomeInteractions({ userName, userEmail }: { userName?: s
   const handleFilterSelect = (filter: string) => {
     const params = new URLSearchParams(searchParams.toString());
     params.set("filter", filter);
-    router.push(`/customer/explore?${params.toString()}`);
+    router.push(`/customer/dashboard?${params.toString()}`);
     setIsFilterOpen(false);
   };
 

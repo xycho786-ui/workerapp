@@ -32,7 +32,7 @@ interface CustomerUser {
 
 interface Booking {
   id: string;
-  status: "PENDING" | "ACCEPTED" | "REJECTED" | "IN_PROGRESS" | "COMPLETED" | "CANCELLED";
+  status: "PENDING" | "ACCEPTED" | "REJECTED" | "IN_PROGRESS" | "COMPLETED" | "CANCELLED" | "AWAITING_PAYMENT" | "PAYMENT_COMPLETED";
   jobDetails: string;
   price: number | null;
   scheduledAt: Date | null;
@@ -162,8 +162,8 @@ export default function WorkerDashboardClient({
     setLoadingAction(prev => ({ ...prev, [bookingId]: false }));
 
     if (res.success) {
-      alert("Job marked as Completed! Great work.");
-      setAllBookings(prev => prev.map(b => b.id === bookingId ? { ...b, status: "COMPLETED" as const } : b));
+      alert("Job marked as Completed! Awaiting customer payment.");
+      setAllBookings(prev => prev.map(b => b.id === bookingId ? { ...b, status: "AWAITING_PAYMENT" as const } : b));
       setSelectedBooking(null);
     } else {
       alert("Failed to complete booking: " + res.error);
@@ -173,10 +173,10 @@ export default function WorkerDashboardClient({
   // Filter Bookings by status
   const acceptedJobs = allBookings.filter(b => b.status === "PENDING" || b.status === "ACCEPTED");
   const activeJobs = allBookings.filter(b => b.status === "IN_PROGRESS");
-  const completedJobs = allBookings.filter(b => b.status === "COMPLETED" || b.status === "CANCELLED" || b.status === "REJECTED");
+  const completedJobs = allBookings.filter(b => b.status === "COMPLETED" || b.status === "CANCELLED" || b.status === "REJECTED" || b.status === "PAYMENT_COMPLETED" || b.status === "AWAITING_PAYMENT");
 
   // Calculations for Earnings
-  const completedList = allBookings.filter(b => b.status === "COMPLETED");
+  const completedList = allBookings.filter(b => b.status === "COMPLETED" || b.status === "PAYMENT_COMPLETED");
   const calculateEarnings = (period: "day" | "week" | "month" | "total") => {
     const now = new Date();
     let limit = new Date(0);
@@ -204,7 +204,7 @@ export default function WorkerDashboardClient({
   const activeJobsCount = acceptedJobs.length + activeJobs.length;
   const completedJobsCount = completedList.length;
 
-  const initials = userName.substring(0, 2).toUpperCase() || "WP";
+  const initials = (userName || "WP").substring(0, 2).toUpperCase();
 
   return (
     <div className="flex flex-col h-full bg-[#F8F9FC] font-sans pb-28">
@@ -217,7 +217,7 @@ export default function WorkerDashboardClient({
               {initials}
             </div>
             <div>
-              <h1 className="text-base font-extrabold text-[#1A2340] tracking-tight">Hi, {userName.split(" ")[0]} 👋</h1>
+              <h1 className="text-base font-extrabold text-[#1A2340] tracking-tight">Hi, {(userName || 'User').split(" ")[0]} 👋</h1>
               <p className="text-[10px] text-slate-400 font-bold flex items-center gap-1">
                 <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full inline-block animate-pulse"></span>
                 {t("profile.verified")} Pro Profile
@@ -323,10 +323,10 @@ export default function WorkerDashboardClient({
                 <div className="flex justify-between items-start mb-3">
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#E8514A]/10 to-[#E8514A]/20 flex items-center justify-center text-[#E8514A] font-bold text-sm">
-                      {req.customer.name.substring(0, 2).toUpperCase()}
+                      {(req.customer?.name || 'U').substring(0, 2).toUpperCase()}
                     </div>
                     <div>
-                      <h4 className="font-extrabold text-[#1A2340] text-[15px]">{req.customer.name}</h4>
+                      <h4 className="font-extrabold text-[#1A2340] text-[15px]">{req.customer?.name || 'Unknown'}</h4>
                       <p className="text-[10px] text-[#888BA0] font-bold uppercase tracking-wider mt-0.5">
                         {req.category}
                       </p>
@@ -420,11 +420,11 @@ export default function WorkerDashboardClient({
                     <div className="flex items-center gap-3">
                       <img 
                         src={getCustomerAvatar(bookingId)} 
-                        alt={booking.customer.name} 
+                        alt={booking.customer?.name || 'Customer'} 
                         className="w-10 h-10 rounded-full object-cover border border-slate-200/50"
                       />
                       <div>
-                        <h4 className="font-extrabold text-[#1A2340] text-[15px]">{booking.customer.name}</h4>
+                        <h4 className="font-extrabold text-[#1A2340] text-[15px]">{booking.customer?.name || 'Unknown'}</h4>
                         <p className="text-[10px] text-[#888BA0] font-semibold mt-0.5">
                           Booking ID: {bookingId.substring(0, 8).toUpperCase()}
                         </p>
@@ -553,11 +553,11 @@ export default function WorkerDashboardClient({
                     <div className="flex items-center gap-3">
                       <img 
                         src={getCustomerAvatar(bookingId)} 
-                        alt={booking.customer.name} 
+                        alt={booking.customer?.name || 'Customer'} 
                         className="w-10 h-10 rounded-full object-cover border border-slate-200/50"
                       />
                       <div>
-                        <h4 className="font-extrabold text-[#1A2340] text-[15px]">{booking.customer.name}</h4>
+                        <h4 className="font-extrabold text-[#1A2340] text-[15px]">{booking.customer?.name || 'Unknown'}</h4>
                         <p className="text-[10px] text-[#888BA0] font-semibold mt-0.5">
                           Job Details: {booking.jobDetails.split(":")[0] || "Service Task"}
                         </p>
@@ -657,11 +657,11 @@ export default function WorkerDashboardClient({
                     <div className="flex items-center gap-3">
                       <img 
                         src={getCustomerAvatar(bookingId)} 
-                        alt={booking.customer.name} 
+                        alt={booking.customer?.name || 'Customer'} 
                         className="w-10 h-10 rounded-full object-cover border border-slate-200/50 filter grayscale"
                       />
                       <div>
-                        <h4 className="font-extrabold text-[#1A2340] text-[15px]">{booking.customer.name}</h4>
+                        <h4 className="font-extrabold text-[#1A2340] text-[15px]">{booking.customer?.name || 'Unknown'}</h4>
                         <p className="text-[11px] text-[#888BA0] font-semibold mt-0.5">
                           {booking.jobDetails.split(":")[0] || "Service Task"} • {formattedDate}
                         </p>
@@ -719,10 +719,10 @@ export default function WorkerDashboardClient({
                   <div className="flex justify-between items-center">
                     <div className="flex items-center gap-2">
                       <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 font-bold text-xs">
-                        {rev.reviewer.name.substring(0, 2).toUpperCase()}
+                        {(rev.reviewer?.name || 'U').substring(0, 2).toUpperCase()}
                       </div>
                       <div>
-                        <h4 className="font-extrabold text-[#1A2340] text-xs">{rev.reviewer.name}</h4>
+                        <h4 className="font-extrabold text-[#1A2340] text-xs">{rev.reviewer?.name || 'Unknown'}</h4>
                         <span className="text-[9px] text-slate-400 font-medium">
                           {new Date(rev.createdAt).toLocaleDateString()}
                         </span>
@@ -777,13 +777,13 @@ export default function WorkerDashboardClient({
                 <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-[0_2px_8px_rgba(0,0,0,0.01)] flex gap-4">
                   <img 
                     src={getCustomerAvatar(selectedBooking.id)} 
-                    alt={selectedBooking.customer.name} 
+                    alt={selectedBooking.customer?.name || 'Customer'} 
                     className="w-12 h-12 rounded-full object-cover border border-slate-200/50"
                   />
                   <div>
-                    <h4 className="font-extrabold text-[#1A2340] text-[15px]">{selectedBooking.customer.name}</h4>
+                    <h4 className="font-extrabold text-[#1A2340] text-[15px]">{selectedBooking.customer?.name || 'Unknown'}</h4>
                     <p className="text-xs text-slate-500 font-semibold">
-                      Client Email: {selectedBooking.customer.email}
+                      Client Email: {selectedBooking.customer?.email || 'N/A'}
                     </p>
                   </div>
                 </div>
@@ -870,12 +870,15 @@ export default function WorkerDashboardClient({
               <div className="p-5 overflow-y-auto space-y-4">
                 
                 {/* Client info */}
-                <div className="bg-white p-4 rounded-2xl border border-slate-100 flex gap-4">
-                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#E8514A]/10 to-[#E8514A]/20 flex items-center justify-center text-[#E8514A] font-extrabold text-sm">
-                    {selectedRequest.customer.name.substring(0, 2).toUpperCase()}
+                <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-[0_2px_8px_rgba(0,0,0,0.01)] flex gap-3 items-center">
+                  <div className="w-12 h-12 rounded-full bg-[#E8514A]/10 flex items-center justify-center text-[#E8514A] font-bold text-lg">
+                    {(selectedRequest.customer?.name || 'U').substring(0, 2).toUpperCase()}
                   </div>
                   <div>
-                    <h4 className="font-bold text-[#1A2340] text-sm">{selectedRequest.customer.name}</h4>
+                    <h4 className="font-bold text-[#1A2340] text-sm">{selectedRequest.customer?.name || 'Unknown'}</h4>
+                    <p className="text-xs text-slate-500">
+                      Client Email: {selectedRequest.customer?.email || 'N/A'}
+                    </p>
                     <span className="text-[10px] text-slate-400 font-semibold">Client Name</span>
                   </div>
                 </div>

@@ -1,53 +1,82 @@
-"use client";
-
+import { MapPin, Bell, UserIcon } from "lucide-react";
 import Link from "next/link";
-import { Search, MapPin, Briefcase } from "lucide-react";
-import { useLanguage } from "@/context/LanguageContext";
+import { prisma } from "@/lib/prisma";
+import { getServerLanguage } from "@/utils/serverLanguage";
+import ExploreClient from "./ExploreClient";
 
-export default function CustomerDashboard() {
-  const { t } = useLanguage();
+export default async function DashboardPage(props: {
+  searchParams: Promise<{ search?: string; filter?: string }>;
+}) {
+  const searchParams = await props.searchParams;
+  const search = searchParams.search || "";
+  const filter = searchParams.filter || "newest";
+
+  const { t } = await getServerLanguage();
+
+  // Build the Prisma where clause based on search
+  const whereClause = search
+    ? {
+        OR: [
+          { skills: { hasSome: [search] } },
+          { user: { name: { contains: search, mode: "insensitive" as const } } },
+          { category: { name: { contains: search, mode: "insensitive" as const } } },
+          { profession: { hasSome: [search] } },
+          { customProfession: { contains: search, mode: "insensitive" as const } },
+        ],
+      }
+    : {};
+
+  // Determine sort order
+  let orderBy: any = { createdAt: 'desc' };
+  if (filter === "top_rated") {
+    orderBy = { rating: 'desc' };
+  } else if (filter === "nearby") {
+    orderBy = { createdAt: 'desc' };
+  }
+
+  // Fetch real workers from the database
+  const workers = await prisma.workerProfile.findMany({
+    where: whereClause,
+    include: {
+      user: true,
+      category: true,
+      location: true,
+    },
+    take: 10,
+    orderBy,
+  });
 
   return (
-    <div className="flex flex-col h-full bg-gray-50">
-      <header className="px-6 py-8 bg-primary text-white pb-16">
-        <h1 className="text-2xl font-bold">{t("dashboard.welcome")}</h1>
-        <p className="opacity-80 mt-1">{t("dashboard.readyToHire")}</p>
-      </header>
-
-      <main className="flex-1 px-4 -mt-8 space-y-6 pb-20">
-        
-        {/* Quick Actions */}
-        <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 flex justify-between">
-          <Link href="/customer/explore" className="flex flex-col items-center gap-2 flex-1 border-r border-gray-100">
-            <div className="w-12 h-12 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center">
-              <Search size={24} />
+    <div className="flex flex-col h-full bg-[#F5F5F7] pb-20">
+      
+      {/* 1. Top Header */}
+      <div className="bg-white px-5 pt-12 pb-4 z-10 relative">
+        <div className="flex justify-between items-center mb-1">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary">
+              <MapPin size={20} />
             </div>
-            <span className="text-sm font-medium text-gray-700">{t("dashboard.findWorkers")}</span>
-          </Link>
-          <Link href="/customer/jobs" className="flex flex-col items-center gap-2 flex-1">
-            <div className="w-12 h-12 rounded-full bg-green-50 text-green-600 flex items-center justify-center">
-              <Briefcase size={24} />
+            <div>
+              <p className="text-[11px] text-gray-400 font-semibold uppercase tracking-wider mb-0.5">{t("explore.currentLocation", "Current Location")}</p>
+              <h2 className="text-sm font-bold text-slate-800">Coimbatore, TN</h2>
             </div>
-            <span className="text-sm font-medium text-gray-700">{t("dashboard.myBookings")}</span>
-          </Link>
-        </div>
-
-        {/* Recent Activity Placeholder */}
-        <div>
-          <h2 className="text-lg font-bold text-gray-900 mb-4">{t("dashboard.recentActivity")}</h2>
-          <div className="bg-white rounded-2xl p-6 text-center shadow-sm border border-gray-100">
-            <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-3">
-              <MapPin size={24} className="text-gray-400" />
-            </div>
-            <h3 className="text-gray-900 font-medium">{t("dashboard.noBookings")}</h3>
-            <p className="text-gray-500 text-sm mt-1">{t("dashboard.startSearching")}</p>
-            <Link href="/customer/explore" className="mt-4 inline-block bg-primary text-white font-medium px-6 py-2.5 rounded-xl text-sm">
-              {t("dashboard.exploreWorkers")}
+          </div>
+          <div className="flex items-center gap-3">
+            <Link href="/customer/notifications" className="relative p-2 text-slate-600 hover:bg-slate-50 rounded-full transition-colors">
+              <Bell size={22} />
+              <span className="absolute top-1.5 right-1.5 w-2.5 h-2.5 bg-primary rounded-full border-2 border-white"></span>
+            </Link>
+            <Link href="/customer/profile">
+              <div className="w-9 h-9 rounded-full bg-slate-100 overflow-hidden border border-slate-200">
+                <UserIcon className="w-full h-full p-1.5 text-slate-400" />
+              </div>
             </Link>
           </div>
         </div>
+      </div>
 
-      </main>
+      {/* Interactive Search & Explore Client */}
+      <ExploreClient initialWorkers={workers} initialSearch={search} />
     </div>
   );
 }

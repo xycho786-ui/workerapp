@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { createClient } from '@/utils/supabase/client';
 import ActiveChatRoom from '@/components/ActiveChatRoom';
+import { useLanguage } from "@/context/LanguageContext";
 
 type BotMessage = {
   id: string;
@@ -41,6 +42,7 @@ interface ChatSession {
 }
 
 function CustomerChatContent() {
+  const { t } = useLanguage();
   const router = useRouter();
   const searchParams = useSearchParams();
   const bookingId = searchParams.get('bookingId');
@@ -51,7 +53,7 @@ function CustomerChatContent() {
   const [authLoading, setAuthLoading] = useState(true);
 
   // Chat Inbox List States
-  const [activeTab, setActiveTab] = useState("All Chats");
+  const [activeTab, setActiveTab] = useState(t("chatPage.allChats"));
   const [searchQuery, setSearchQuery] = useState("");
   const [sessions, setSessions] = useState<ChatSession[]>([]);
   const [isLoadingSessions, setIsLoadingSessions] = useState(true);
@@ -200,10 +202,10 @@ function CustomerChatContent() {
     const matchesSearch = s.participant.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       s.jobDetails.toLowerCase().includes(searchQuery.toLowerCase());
     
-    if (activeTab === "Unread") {
+    if (activeTab === t("chatPage.unread")) {
       return matchesSearch && s.unreadCount > 0;
     }
-    if (activeTab === "Archived") {
+    if (activeTab === t("chatPage.archived")) {
       return matchesSearch && (s.status === "COMPLETED" || s.status === "CANCELLED" || s.status === "REJECTED");
     }
     return matchesSearch;
@@ -225,7 +227,7 @@ function CustomerChatContent() {
         <div className="w-16 h-16 rounded-full bg-[#FFF5F5] text-[#E8514A] flex items-center justify-center mb-5 border border-[#E8514A]/10 shadow-sm">
           <Lock size={24} className="stroke-[2.5]" />
         </div>
-        <h3 className="text-base font-extrabold text-[#1A2340] mb-2">Chat Unavailable</h3>
+        <h3 className="text-base font-extrabold text-[#1A2340] mb-2">{t("chatPage.chatUnavailable")}</h3>
         <p className="text-xs text-slate-500 font-medium max-w-[280px] leading-relaxed mb-6">
           Chat will become available once the worker accepts your booking request.
         </p>
@@ -264,10 +266,10 @@ function CustomerChatContent() {
               <ArrowLeft size={20} />
             </button>
             <div>
-              <h2 className="text-sm font-extrabold text-[#1A2340] leading-none">Support Assistant</h2>
+              <h2 className="text-sm font-extrabold text-[#1A2340] leading-none">{t("chatPage.supportAssistant")}</h2>
               <div className="flex items-center gap-1 mt-1">
                 <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full"></span>
-                <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Online</p>
+                <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">{t("chatPage.online")}</p>
               </div>
             </div>
           </div>
@@ -280,7 +282,7 @@ function CustomerChatContent() {
               <div className="w-16 h-16 bg-[#FFF5F5] rounded-full flex items-center justify-center mb-2">
                 <Bot size={28} className="text-[#E8514A]" />
               </div>
-              <h3 className="text-base font-extrabold text-[#1A2340]">Booking Support</h3>
+              <h3 className="text-base font-extrabold text-[#1A2340]">{t("chatPage.bookingSupport")}</h3>
               <p className="text-xs text-slate-500 max-w-[250px] leading-relaxed font-semibold">
                 I can help you manage your active bookings, answer questions, and coordinate help.
               </p>
@@ -323,7 +325,7 @@ function CustomerChatContent() {
             <input
               value={botInput}
               onChange={(e) => setBotInput(e.target.value)}
-              placeholder="Ask about your booking..."
+              placeholder={t("chatPage.askBooking")}
               className="flex-1 bg-slate-50 border border-slate-100 rounded-xl px-4 py-3 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-primary/20 text-slate-800 placeholder:text-slate-400 transition-all"
             />
             <button 
@@ -345,7 +347,7 @@ function CustomerChatContent() {
       {/* Header */}
       <div className="bg-white px-5 pt-12 pb-4 shadow-[0_2px_8px_rgba(0,0,0,0.02)] sticky top-0 z-40 border-b border-[#F0F0F0]">
         <div className="flex justify-between items-center mb-4">
-          <h1 className="text-lg font-black text-[#1A2340] tracking-tight">Messages</h1>
+          <h1 className="text-lg font-black text-[#1A2340] tracking-tight">{t("chatPage.messages")}</h1>
           <span className="text-xs font-bold bg-[#FFF5F5] text-[#E8514A] px-2.5 py-1 rounded-full border border-[#E8514A]/10">
             Inbox
           </span>
@@ -356,16 +358,16 @@ function CustomerChatContent() {
           <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
           <input 
             type="text"
-            placeholder="Search messages..."
+            placeholder={t("chatPage.searchMessages")}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-100 rounded-2xl text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-[#1A2340]/10 focus:border-[#1A2340] text-slate-800 placeholder:text-slate-400 transition-all"
+            className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-100 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500/30 transition-all font-medium text-[#1A2340] placeholder-slate-400"
           />
         </div>
 
         {/* Category tabs */}
         <div className="flex gap-2 overflow-x-auto scrollbar-hide pt-1">
-          {["All Chats", "Unread", "Archived"].map((t) => (
+          {[t("chatPage.allChats"), t("chatPage.unread"), t("chatPage.archived")].map((t) => (
             <button 
               key={t} 
               onClick={() => setActiveTab(t)}
@@ -384,7 +386,7 @@ function CustomerChatContent() {
       {/* Conversations List */}
       <div className="flex-1 p-4 space-y-3">
         {/* Pinned Support Assistant helper card */}
-        {activeTab === "All Chats" && searchQuery === "" && (
+        {activeTab === t("chatPage.allChats") && searchQuery === "" && (
           <div
             onClick={() => setShowSupportBot(true)}
             className="bg-white rounded-2xl p-4 border border-[#E8514A]/10 shadow-[0_2px_12px_rgba(232,81,74,0.02)] flex items-center gap-3.5 cursor-pointer transition-all hover:translate-x-0.5 active:scale-[0.99] hover:shadow-[0_4px_16px_rgba(232,81,74,0.06)] relative overflow-hidden group border-l-4 border-l-[#E8514A]"
@@ -394,7 +396,7 @@ function CustomerChatContent() {
             </div>
             <div className="flex-1 min-w-0 text-left">
               <div className="flex justify-between items-baseline mb-0.5">
-                <h4 className="font-black text-[#1A2340] text-xs">AI Support Assistant</h4>
+                <h4 className="font-black text-[#1A2340] text-xs">{t("chatPage.aiSupportAssistant")}</h4>
                 <span className="text-[8px] font-black bg-[#FFF5F5] text-[#E8514A] rounded px-1.5 py-0.5 uppercase tracking-wider">
                   Helper
                 </span>
@@ -409,20 +411,20 @@ function CustomerChatContent() {
         {isLoadingSessions ? (
           <div className="flex flex-col items-center justify-center p-12 text-center text-slate-400">
             <Loader2 className="animate-spin text-[#E8514A] mb-3" size={24} />
-            <p className="text-xs font-bold">Loading message history...</p>
+            <p className="text-xs font-bold">{t("chatPage.loadingMessages")}</p>
           </div>
         ) : filteredSessions.length === 0 ? (
           <div className="bg-white rounded-3xl p-8 border border-slate-100 shadow-[0_4px_16px_rgba(0,0,0,0.01)] text-center flex flex-col items-center justify-center pt-16 pb-16">
             <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mb-4 text-[#888BA0] opacity-70">
               <Inbox size={28} />
             </div>
-            <h4 className="font-extrabold text-[#1A2340] text-sm mb-2">No messages found</h4>
+            <h4 className="font-extrabold text-[#1A2340] text-sm mb-2">{t("chatPage.noMessagesFound")}</h4>
             <p className="text-xs text-[#888BA0] font-medium max-w-[240px] leading-relaxed">
               {searchQuery 
-                ? "We couldn't find any chats matching your search term."
-                : activeTab === "Unread" 
-                  ? "You have no unread notifications or conversations."
-                  : "Your active and past worker chats will be displayed here."}
+                ? t("chatPage.noMessagesSearch")
+                : activeTab === t("chatPage.unread") 
+                  ? t("chatPage.noMessagesUnread")
+                  : t("chatPage.noMessagesAll")}
             </p>
           </div>
         ) : (

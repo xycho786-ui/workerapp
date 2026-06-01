@@ -7,6 +7,7 @@ import {
   Camera, Check, Lock, ChevronRight, Phone, MapPin, Calendar, X, Loader2 
 } from "lucide-react";
 import Link from "next/link";
+import { useLanguage } from "@/context/LanguageContext";
 import Portal from "@/components/Portal";
 import { createClient } from "@/utils/supabase/client";
 
@@ -15,7 +16,11 @@ interface CustomerProfileContentProps {
   handleLogoutAction: () => Promise<void>;
 }
 
-export default function CustomerProfileContent({ dbUser, handleLogoutAction }: CustomerProfileContentProps) {
+export default function CustomerProfileContent({
+  dbUser,
+  handleLogoutAction
+}: CustomerProfileContentProps) {
+  const { t } = useLanguage();
   const router = useRouter();
   const supabase = createClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -123,11 +128,11 @@ export default function CustomerProfileContent({ dbUser, handleLogoutAction }: C
   const handleChangePassword = async (e: React.FormEvent) => {
     e.preventDefault();
     if (newPassword !== confirmPassword) {
-      setPasswordError("Passwords do not match");
+      setPasswordError(t("profilePage.passwordsNoMatch"));
       return;
     }
     if (newPassword.length < 6) {
-      setPasswordError("Password must be at least 6 characters");
+      setPasswordError(t("profilePage.passwordShort"));
       return;
     }
 
@@ -308,34 +313,34 @@ export default function CustomerProfileContent({ dbUser, handleLogoutAction }: C
         {activeTab === "account" && (
           <div className="space-y-4">
             <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-[0_4px_16px_rgba(0,0,0,0.01)] space-y-4">
-              <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest border-b border-slate-50 pb-2">Account Overview</h3>
+              <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest border-b border-slate-50 pb-2">{t("profilePage.accountOverview")}</h3>
               
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Full Name</label>
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">{t("profilePage.fullName")}</label>
                   <p className="text-sm font-semibold text-slate-700 mt-0.5">{dbUser.name}</p>
                 </div>
                 <div>
-                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Account Type</label>
-                  <p className="text-sm font-bold text-[#F08080] mt-0.5 capitalize">Customer</p>
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">{t("profilePage.accountType")}</label>
+                  <p className="text-sm font-bold text-[#F08080] mt-0.5 capitalize">{t("profilePage.customer")}</p>
                 </div>
                 <div className="col-span-2">
-                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Registered Email</label>
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">{t("profilePage.registeredEmail")}</label>
                   <p className="text-sm font-semibold text-slate-700 mt-0.5">{dbUser.email}</p>
                 </div>
                 <div>
-                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Phone Number</label>
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">{t("profilePage.phoneNumber")}</label>
                   <p className="text-sm font-semibold text-slate-700 mt-0.5">{dbUser.phone || "Not provided"}</p>
                 </div>
                 <div>
-                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Primary Location</label>
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">{t("profilePage.primaryLocation")}</label>
                   <p className="text-sm font-semibold text-slate-700 mt-0.5">{dbUser.address || "Not provided"}</p>
                 </div>
               </div>
             </div>
             
             <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-[0_4px_16px_rgba(0,0,0,0.01)]">
-              <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest border-b border-slate-50 pb-3 mb-4">Security</h3>
+              <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest border-b border-slate-50 pb-3 mb-4">{t("profilePage.security")}</h3>
               
               <form onSubmit={handleChangePassword} className="space-y-3.5">
                 {passwordError && (
@@ -349,7 +354,7 @@ export default function CustomerProfileContent({ dbUser, handleLogoutAction }: C
                   </div>
                 )}
                 <div className="space-y-1">
-                  <label className="text-[11px] font-semibold text-slate-500">New Password</label>
+                  <label className="text-[11px] font-semibold text-slate-500">{t("profilePage.newPassword")}</label>
                   <input
                     type="password"
                     value={newPassword}
@@ -360,7 +365,7 @@ export default function CustomerProfileContent({ dbUser, handleLogoutAction }: C
                   />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-[11px] font-semibold text-slate-500">Confirm New Password</label>
+                  <label className="text-[11px] font-semibold text-slate-500">{t("profilePage.confirmNewPassword")}</label>
                   <input
                     type="password"
                     value={confirmPassword}
@@ -436,7 +441,7 @@ export default function CustomerProfileContent({ dbUser, handleLogoutAction }: C
                         </div>
                       </div>
                       <Link
-                        href={`/customer/explore?workerId=${worker.id}`}
+                        href={`/customer/dashboard?workerId=${worker.id}`}
                         className="px-3 py-1.5 bg-[#F08080]/10 hover:bg-[#F08080] text-[#F08080] hover:text-white font-bold rounded-lg text-[10px] transition-all"
                       >
                         Hire Again
@@ -492,7 +497,7 @@ export default function CustomerProfileContent({ dbUser, handleLogoutAction }: C
                           <X size={12} /> Remove
                         </button>
                         <Link
-                          href={`/customer/explore?workerId=${worker.id}`}
+                          href={`/customer/dashboard?workerId=${worker.id}`}
                           className="px-3.5 py-2 bg-[#F08080] hover:bg-[#F08080]/90 text-white font-bold rounded-xl text-[10px] transition-colors shadow-sm shadow-[#F08080]/15"
                         >
                           Hire Again
@@ -507,9 +512,9 @@ export default function CustomerProfileContent({ dbUser, handleLogoutAction }: C
                 <div className="w-14 h-14 bg-[#F08080]/5 text-[#F08080] rounded-full flex items-center justify-center mx-auto mb-3.5 border border-[#F08080]/10">
                   <Heart size={24} className="stroke-[1.5]" />
                 </div>
-                <h4 className="font-bold text-slate-800 text-sm">No saved workers yet</h4>
-                <p className="text-xs text-slate-400 mt-1 max-w-xs mx-auto leading-relaxed">Save your favorite workers to view, rehire, and coordinate with them easily.</p>
-                <Link href="/customer/explore" className="mt-4 inline-block bg-[#F08080]/10 hover:bg-[#F08080] text-[#F08080] hover:text-white font-bold px-5 py-2.5 rounded-xl text-xs transition-all">
+                <h4 className="font-bold text-slate-800 text-sm">{t("profilePage.noSavedWorkers")}</h4>
+                <p className="text-xs text-slate-400 mt-1 max-w-xs mx-auto leading-relaxed">{t("profilePage.noSavedWorkersDesc")}</p>
+                <Link href="/customer/dashboard" className="mt-4 inline-block bg-[#F08080]/10 hover:bg-[#F08080] text-[#F08080] hover:text-white font-bold px-5 py-2.5 rounded-xl text-xs transition-all">
                   Find Workers
                 </Link>
               </div>
@@ -520,7 +525,7 @@ export default function CustomerProfileContent({ dbUser, handleLogoutAction }: C
         {/* REVIEWS TAB */}
         {activeTab === "reviews" && (
           <div className="space-y-3">
-            <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1.5">My Reviews & Ratings</h3>
+            <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1.5">{t("profilePage.myReviewsAndRatings")}</h3>
             
             {dbUser.reviewsGiven && dbUser.reviewsGiven.length > 0 ? (
               <div className="space-y-3">
@@ -564,8 +569,8 @@ export default function CustomerProfileContent({ dbUser, handleLogoutAction }: C
                 <div className="w-14 h-14 bg-amber-50 text-amber-500 rounded-full flex items-center justify-center mx-auto mb-3.5 border border-amber-100">
                   <Star size={24} className="stroke-[1.5]" />
                 </div>
-                <h4 className="font-bold text-slate-800 text-sm">No reviews submitted</h4>
-                <p className="text-xs text-slate-400 mt-1 max-w-xs mx-auto leading-relaxed">Your submitted ratings and feedback for hired service professionals will appear here.</p>
+                <h4 className="font-bold text-slate-800 text-sm">{t("profilePage.noReviewsSubmitted")}</h4>
+                <p className="text-xs text-slate-400 mt-1 max-w-xs mx-auto leading-relaxed">{t("profilePage.noReviewsDesc")}</p>
               </div>
             )}
           </div>
@@ -575,7 +580,7 @@ export default function CustomerProfileContent({ dbUser, handleLogoutAction }: C
         {activeTab === "settings" && (
           <div className="space-y-4">
             <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm space-y-3">
-              <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest border-b border-slate-50 pb-2">App Settings</h3>
+              <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest border-b border-slate-50 pb-2">{t("profilePage.appSettings")}</h3>
               <p className="text-xs text-slate-500 font-medium leading-relaxed">
                 Manage language preferences, appearance, privacy controls, notifications, and more.
               </p>
@@ -619,7 +624,7 @@ export default function CustomerProfileContent({ dbUser, handleLogoutAction }: C
         {/* NOTIFICATIONS SETTINGS */}
         {activeTab === "notifications" && (
           <div className="space-y-4">
-            <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1.5">Notification Preferences</h3>
+            <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1.5">{t("profilePage.notificationPreferences")}</h3>
             
             <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm space-y-4">
               {[
@@ -675,7 +680,7 @@ export default function CustomerProfileContent({ dbUser, handleLogoutAction }: C
         {/* HELP CENTER TAB */}
         {activeTab === "help" && (
           <div className="space-y-4">
-            <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1.5">Help Desk FAQ</h3>
+            <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1.5">{t("profilePage.helpDeskFaq")}</h3>
             
             <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden divide-y divide-slate-100">
               {[
@@ -721,8 +726,8 @@ export default function CustomerProfileContent({ dbUser, handleLogoutAction }: C
 
             <div className="bg-slate-55 bg-gradient-to-br from-slate-900 to-slate-800 p-5 rounded-2xl text-white space-y-3.5 shadow-md">
               <div className="space-y-1">
-                <h4 className="font-bold text-sm">Need Direct Support?</h4>
-                <p className="text-[11px] opacity-75 font-medium">Our customer satisfaction team is online 24/7 to resolve issues.</p>
+                <h4 className="font-bold text-sm">{t("profilePage.needSupport")}</h4>
+                <p className="text-[11px] opacity-75 font-medium">{t("profilePage.needSupportDesc")}</p>
               </div>
               <div className="flex gap-2">
                 <a 
@@ -751,8 +756,8 @@ export default function CustomerProfileContent({ dbUser, handleLogoutAction }: C
                 <span className="text-2xl font-black">🛠️</span>
               </div>
               <div>
-                <h4 className="font-black text-slate-800 text-base">WBSP Platform</h4>
-                <p className="text-xs text-slate-400 font-semibold mt-0.5">Find & Hire Skilled Workers Instantly</p>
+                <h4 className="font-black text-slate-800 text-base">{t("profilePage.wbspPlatform")}</h4>
+                <p className="text-xs text-slate-400 font-semibold mt-0.5">{t("profilePage.findHire")}</p>
               </div>
               
               <div className="pt-2 text-xs font-semibold text-slate-500 uppercase tracking-widest">
@@ -766,7 +771,7 @@ export default function CustomerProfileContent({ dbUser, handleLogoutAction }: C
                 onClick={() => alert("Privacy Policy details will be available soon.")}
                 className="w-full py-3.5 flex justify-between items-center text-left text-xs font-bold text-slate-700 hover:text-[#F08080]"
               >
-                <span>Privacy Policy</span>
+                <span>{t("profilePage.privacyPolicy")}</span>
                 <ChevronRight size={14} className="text-slate-400" />
               </button>
               <button 
@@ -774,7 +779,7 @@ export default function CustomerProfileContent({ dbUser, handleLogoutAction }: C
                 onClick={() => alert("Terms of Service details will be available soon.")}
                 className="w-full py-3.5 flex justify-between items-center text-left text-xs font-bold text-slate-700 hover:text-[#F08080]"
               >
-                <span>Terms & Conditions</span>
+                <span>{t("profilePage.termsConditions")}</span>
                 <ChevronRight size={14} className="text-slate-400" />
               </button>
               <button 
@@ -782,7 +787,7 @@ export default function CustomerProfileContent({ dbUser, handleLogoutAction }: C
                 onClick={() => alert("This application matches customer booking requests with certified professionals near you.")}
                 className="w-full py-3.5 flex justify-between items-center text-left text-xs font-bold text-slate-700 hover:text-[#F08080]"
               >
-                <span>About the Platform</span>
+                <span>{t("profilePage.aboutPlatform2")}</span>
                 <ChevronRight size={14} className="text-slate-400" />
               </button>
             </div>
@@ -814,7 +819,7 @@ export default function CustomerProfileContent({ dbUser, handleLogoutAction }: C
             <div className="bg-[#FCFDFD] w-full max-w-md rounded-3xl overflow-hidden shadow-2xl animate-in slide-in-from-bottom-8 duration-300 max-h-[90vh] flex flex-col border border-slate-200/50">
               {/* Modal Header */}
               <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-white">
-                <h3 className="font-extrabold text-slate-800 text-[16px]">Edit Account Details</h3>
+                <h3 className="font-extrabold text-slate-800 text-[16px]">{t("profilePage.editAccountDetails")}</h3>
                 <button 
                   type="button" 
                   onClick={() => setIsEditModalOpen(false)}
@@ -848,7 +853,7 @@ export default function CustomerProfileContent({ dbUser, handleLogoutAction }: C
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-xs font-bold text-slate-500">Full Name</label>
+                  <label className="text-xs font-bold text-slate-500">{t("profilePage.fullName")}</label>
                   <input
                     type="text"
                     value={name}
@@ -859,7 +864,7 @@ export default function CustomerProfileContent({ dbUser, handleLogoutAction }: C
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-xs font-bold text-slate-500">Phone Number</label>
+                  <label className="text-xs font-bold text-slate-500">{t("profilePage.phoneNumber")}</label>
                   <input
                     type="tel"
                     value={phone}

@@ -256,43 +256,43 @@ export default function SettingsContent({ dbUser, handleLogoutAction }: Settings
                 state: bookingNotifs, 
                 set: setBookingNotifs, 
                 key: "bookingNotifications", 
-                title: "Booking Updates", 
-                desc: "Alerts for request matches, accepts, and verification OTPs." 
+                title: t("settingsNotifications.bookingUpdates", "Booking Updates"), 
+                desc: t("settingsNotifications.bookingUpdatesDesc", "Alerts for request matches, accepts, and verification OTPs.") 
               },
               { 
                 state: chatNotifs, 
                 set: setChatNotifs, 
                 key: "messageNotifications", 
-                title: "Direct Messages", 
-                desc: "Get notified when a client/worker sends a chat message." 
+                title: t("settingsNotifications.directMessages", "Direct Messages"), 
+                desc: t("settingsNotifications.directMessagesDesc", "Get notified when a client/worker sends a chat message.") 
               },
               { 
                 state: otpNotifs, 
                 set: setOtpNotifs, 
                 key: "otpNotifications", 
-                title: "Security OTPs", 
-                desc: "One-Time Password prompts during check-in/out." 
+                title: t("settingsNotifications.securityOtps", "Security OTPs"), 
+                desc: t("settingsNotifications.securityOtpsDesc", "One-Time Password prompts during check-in/out.") 
               },
               { 
                 state: reviewNotifs, 
                 set: setReviewNotifs, 
                 key: "reviewNotifications", 
-                title: "Review Reminders", 
-                desc: "Prompt notifications to rate completed work." 
+                title: t("settingsNotifications.reviewReminders", "Review Reminders"), 
+                desc: t("settingsNotifications.reviewRemindersDesc", "Prompt notifications to rate completed work.") 
               },
               { 
                 state: promoNotifs, 
                 set: setPromoNotifs, 
                 key: "promotionalNotifications", 
-                title: "Promos & Discounts", 
-                desc: "Marketing notifications, voucher codes, and special campaigns." 
+                title: t("settingsNotifications.promosDiscounts", "Promos & Discounts"), 
+                desc: t("settingsNotifications.promosDiscountsDesc", "Marketing notifications, voucher codes, and special campaigns.") 
               },
               { 
                 state: systemNotifs, 
                 set: setSystemNotifs, 
                 key: "systemNotifications", 
-                title: "System Bulletins", 
-                desc: "Important platform downtime or guidelines notices." 
+                title: t("settingsNotifications.systemBulletins", "System Bulletins"), 
+                desc: t("settingsNotifications.systemBulletinsDesc", "Important platform downtime or guidelines notices.") 
               },
             ].map((item) => (
               <div key={item.key} className="flex items-start justify-between gap-4 p-4">
@@ -353,7 +353,7 @@ export default function SettingsContent({ dbUser, handleLogoutAction }: Settings
                         : "bg-slate-50 text-slate-500 border-slate-100 hover:bg-slate-100"
                     }`}
                   >
-                    {mode}
+                    {t(`settingsTheme.${mode}`, mode)}
                   </button>
                 ))}
               </div>

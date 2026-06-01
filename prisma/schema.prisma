@@ -21,6 +21,7 @@ model User {
   workerProfile WorkerProfile?
   bookings      Booking[]      @relation("CustomerBookings")
   reviewsGiven  Review[]       @relation("ReviewsGiven")
+  payments      Payment[]      @relation("CustomerPayments")
   
   // New Relationships
   messagesSent      Message[]      @relation("MessagesSent")
@@ -77,6 +78,7 @@ model WorkerProfile {
   // Jobs/Bookings handled
   jobs         Booking[] @relation("WorkerBookings")
   reviews      Review[]  @relation("WorkerReviews")
+  payments     Payment[] @relation("WorkerPayments")
   
   // New Relationships
   categoryId   String?
@@ -138,6 +140,8 @@ model Booking {
   status      BookingStatus @default(PENDING)
   jobDetails  String
   price       Float?
+  
+  payment     Payment?
   
   scheduledAt DateTime?
   createdAt   DateTime @default(now())
@@ -224,6 +228,8 @@ enum BookingStatus {
   REJECTED
   IN_PROGRESS
   COMPLETED
+  AWAITING_PAYMENT
+  PAYMENT_COMPLETED
   CANCELLED
 }
 
@@ -262,4 +268,59 @@ enum MediaType {
   IMAGE
   VIDEO
   AUDIO
+}
+
+model Payment {
+  id            String         @id @default(uuid())
+  amount        Float
+  platformFee   Float          @default(25.0)
+  tax           Float          @default(0.0)
+  totalAmount   Float
+  
+  status        PaymentStatus  @default(PENDING)
+  method        PaymentMethod?
+  transactionId String?
+  
+  bookingId     String         @unique
+  booking       Booking        @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  
+  customerId    String
+  customer      User           @relation("CustomerPayments", fields: [customerId], references: [id])
+  
+  workerId      String
+  worker        WorkerProfile  @relation("WorkerPayments", fields: [workerId], references: [id])
+  
+  invoice       Invoice?
+  
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+}
+
+model Invoice {
+  id            String   @id @default(uuid())
+  invoiceNumber String   @unique
+  date          DateTime @default(now())
+  totalAmount   Float
+  
+  paymentId     String   @unique
+  payment       Payment  @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+enum PaymentStatus {
+  PENDING
+  PROCESSING
+  SUCCESSFUL
+  FAILED
+  REFUNDED
+}
+
+enum PaymentMethod {
+  UPI
+  DEBIT_CARD
+  CREDIT_CARD
+  NET_BANKING
+  WALLET
 }

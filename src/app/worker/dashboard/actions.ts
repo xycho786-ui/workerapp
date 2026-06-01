@@ -230,7 +230,7 @@ export async function completeBooking(bookingId: string) {
 
     await prisma.booking.update({
       where: { id: bookingId },
-      data: { status: "COMPLETED" },
+      data: { status: "AWAITING_PAYMENT" },
     });
 
     // Create notifications
@@ -239,32 +239,9 @@ export async function completeBooking(bookingId: string) {
       await prisma.notification.create({
         data: {
           userId: booking.customerId,
-          title: "✅ Service Completed",
-          message: "Your service has been marked as completed.",
+          title: "✅ Service Completed - Payment Required",
+          message: "Your service has been marked as completed. Please proceed to payment.",
           category: "BOOKINGS",
-          relatedId: booking.id,
-          type: "INFO"
-        }
-      });
-
-      await prisma.notification.create({
-        data: {
-          userId: booking.customerId,
-          title: "⭐ Rate Your Experience",
-          message: "Share your feedback about the completed service.",
-          category: "REVIEWS",
-          relatedId: booking.id,
-          type: "INFO"
-        }
-      });
-
-      // Worker notification for payment/earnings
-      await prisma.notification.create({
-        data: {
-          userId: booking.worker.userId,
-          title: "💰 Payment Received",
-          message: "You received payment for a completed service.",
-          category: "PAYMENTS",
           relatedId: booking.id,
           type: "INFO"
         }
@@ -284,3 +261,4 @@ export async function completeBooking(bookingId: string) {
     return { success: false, error: error.message };
   }
 }
+

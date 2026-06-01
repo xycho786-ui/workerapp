@@ -5,6 +5,7 @@ import { Search, Mic, ChevronRight, Wrench, Zap, Sparkles, Wind, Paintbrush, Ham
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
+import { useLanguage } from "@/context/LanguageContext";
 
 const FALLBACK_IMAGE = "https://images.unsplash.com/photo-1621905252507-b35492cc74b4?auto=format&fit=crop&q=80&w=300&h=200";
 
@@ -22,6 +23,7 @@ const CATEGORIES = [
 const FILTERS = ["Nearby", "Top Rated", "Budget", "Specialist", "Available Now", "Verified"];
 
 export default function ExploreClient({ initialWorkers, initialSearch }: { initialWorkers: any[], initialSearch: string }) {
+  const { t } = useLanguage();
   const router = useRouter();
   const searchParams = useSearchParams();
   const [searchQuery, setSearchQuery] = useState(initialSearch);
@@ -126,7 +128,7 @@ export default function ExploreClient({ initialWorkers, initialSearch }: { initi
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             onFocus={handleFocus}
-            placeholder="Try: Fix my leaky tap"
+            placeholder={t("explore.searchPlaceholder", "Try: Fix my leaky tap")}
             className={`w-full ${isSearching ? 'pl-10' : 'pl-11'} pr-20 py-3.5 bg-white border border-slate-100 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-slate-400 font-medium text-slate-800 shadow-sm shadow-slate-100`}
           />
           {searchQuery && (
@@ -160,7 +162,7 @@ export default function ExploreClient({ initialWorkers, initialSearch }: { initi
                     : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
                 }`}
               >
-                {activeFilter === filter ? `${filter} \u00D7` : filter}
+                {activeFilter === filter ? `${t(`explore.filters.${filter}`, filter)} \u00D7` : t(`explore.filters.${filter}`, filter)}
               </button>
             ))}
           </div>
@@ -180,8 +182,8 @@ export default function ExploreClient({ initialWorkers, initialSearch }: { initi
                   <Wrench size={22} className="stroke-[1.5]" />
                 </div>
                 <div>
-                  <p className="text-xs text-white/80 font-medium mb-0.5">Ongoing Booking</p>
-                  <h3 className="text-sm font-bold text-white">Plumber arriving in 12 mins</h3>
+                  <p className="text-xs text-white/80 font-medium mb-0.5">{t("explore.ongoingBooking", "Ongoing Booking")}</p>
+                  <h3 className="text-sm font-bold text-white">{t("explore.plumberArriving", "Plumber arriving in 12 mins")}</h3>
                 </div>
               </div>
               <ChevronRight size={20} className="text-white/80" />
@@ -189,7 +191,7 @@ export default function ExploreClient({ initialWorkers, initialSearch }: { initi
 
             {/* Service Categories Grid */}
             <div>
-              <h3 className="text-[17px] font-bold text-slate-800 mb-4">What do you need help with?</h3>
+              <h3 className="text-[17px] font-bold text-slate-800 mb-4">{t("explore.helpWith", "What do you need help with?")}</h3>
               <div className="grid grid-cols-4 gap-y-6 gap-x-2">
                 {CATEGORIES.map((service, i) => (
                   <button 
@@ -202,7 +204,7 @@ export default function ExploreClient({ initialWorkers, initialSearch }: { initi
                     <div className="w-16 h-16 rounded-2xl bg-primary/5 border border-primary/10 flex items-center justify-center text-primary shadow-sm group-hover:bg-primary/10 group-hover:border-primary/20 group-hover:shadow-md transition-all group-active:scale-95">
                       <service.icon size={26} className="stroke-[1.5]" />
                     </div>
-                    <span className="text-[11px] font-semibold text-slate-600 text-center">{service.name}</span>
+                    <span className="text-[11px] font-semibold text-slate-600 text-center">{t(`explore.categories.${service.name}`, service.name)}</span>
                   </button>
                 ))}
               </div>
@@ -210,7 +212,7 @@ export default function ExploreClient({ initialWorkers, initialSearch }: { initi
 
             {/* Promotional Banner Section */}
             <div>
-              <h3 className="text-[17px] font-bold text-slate-800 mb-4">Seasonal Services</h3>
+              <h3 className="text-[17px] font-bold text-slate-800 mb-4">{t("explore.seasonalServices", "Seasonal Services")}</h3>
               <div className="flex gap-4 overflow-x-auto pb-4 -mx-5 px-5 scrollbar-hide snap-x">
                 {/* Banner 1 */}
                 <div className="min-w-[280px] bg-white rounded-[20px] border border-slate-100 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] overflow-hidden flex-shrink-0 snap-start">
@@ -218,12 +220,12 @@ export default function ExploreClient({ initialWorkers, initialSearch }: { initi
                     <Image src="https://images.unsplash.com/photo-1621905252507-b35492cc74b4?auto=format&fit=crop&q=80&w=400&h=200" alt="Roof Checkup" fill className="object-cover" />
                     <div className="absolute inset-0 bg-black/10"></div>
                     <div className="absolute top-3 left-3 bg-primary text-white text-[10px] font-bold px-2 py-1 rounded-md uppercase tracking-wide shadow-sm">
-                      Limited Offer
+                      {t("explore.limitedOffer", "Limited Offer")}
                     </div>
                   </div>
                   <div className="p-4">
-                    <h4 className="font-bold text-slate-800 mb-1">Monsoon Roof Leak Checkup</h4>
-                    <p className="text-xs text-slate-500 font-medium">Starting from $49</p>
+                    <h4 className="font-bold text-slate-800 mb-1">{t("explore.roofCheckup", "Monsoon Roof Leak Checkup")}</h4>
+                    <p className="text-xs text-slate-500 font-medium">{t("explore.startingFrom", "Starting from $49")}</p>
                   </div>
                 </div>
                 {/* Banner 2 */}
@@ -231,15 +233,15 @@ export default function ExploreClient({ initialWorkers, initialSearch }: { initi
                   <div className="h-32 w-full relative">
                     <div className="absolute inset-0 bg-gradient-to-br from-[#F8AD9D] to-primary" />
                     <div className="absolute top-3 left-3 bg-white text-primary text-[10px] font-bold px-2 py-1 rounded-md uppercase tracking-wide shadow-sm">
-                      Sale
+                      {t("explore.sale", "Sale")}
                     </div>
                     <div className="absolute inset-0 flex items-center justify-center opacity-20">
                       <Wind size={80} className="text-white" />
                     </div>
                   </div>
                   <div className="p-4">
-                    <h4 className="font-bold text-slate-800 mb-1">AC Service & Maintenance</h4>
-                    <p className="text-xs text-slate-500 font-medium">Flat 20% off</p>
+                    <h4 className="font-bold text-slate-800 mb-1">{t("explore.acService", "AC Service & Maintenance")}</h4>
+                    <p className="text-xs text-slate-500 font-medium">{t("explore.flatOff", "Flat 20% off")}</p>
                   </div>
                 </div>
               </div>
@@ -250,10 +252,10 @@ export default function ExploreClient({ initialWorkers, initialSearch }: { initi
           <div className="space-y-4">
             <div className="flex justify-between items-end mb-2">
               <h3 className="text-[13px] font-medium text-slate-600">
-                {initialWorkers.length} Professionals found in Coimbatore, TN
+                {initialWorkers.length} {t("explore.professionalsFound", "Professionals found in")} Coimbatore, TN
               </h3>
               <button className="flex items-center gap-1 text-[11px] font-bold text-slate-500 hover:text-primary transition-colors">
-                <SlidersHorizontal size={12} /> Relevance
+                <SlidersHorizontal size={12} /> {t("explore.relevance", "Relevance")}
               </button>
             </div>
 
@@ -265,7 +267,7 @@ export default function ExploreClient({ initialWorkers, initialSearch }: { initi
                   <Image src={FALLBACK_IMAGE} alt={worker.user.name} fill className="object-cover" />
                   {/* Verified Badge Overlay */}
                   <div className="absolute bottom-3 right-3 bg-[#10b981] text-white text-[10px] font-bold px-2 py-1 rounded-md uppercase tracking-wide flex items-center gap-1 shadow-md">
-                    <ShieldCheck size={12} /> Verified
+                    <ShieldCheck size={12} /> {t("explore.verified", "Verified")}
                   </div>
                 </div>
 
@@ -279,27 +281,27 @@ export default function ExploreClient({ initialWorkers, initialSearch }: { initi
                   </div>
                   
                   <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-4">
-                    {worker.category?.name || "Expert Professional"}
+                    {t(`explore.categories.${worker.category?.name}`, worker.category?.name) || t("explore.expertPro", "Expert Professional")}
                   </p>
                   
                   <div className="flex items-center gap-4 text-[12px] text-slate-500 font-medium mb-5">
                     <div className="flex items-center gap-1.5">
                       <Briefcase size={14} className="text-slate-400" />
-                      {worker.experience || "10+"} Years
+                      {worker.experience || "10+"} {t("explore.years", "Years")}
                     </div>
                     <div className="flex items-center gap-1.5">
                       <MapPin size={14} className="text-slate-400" />
-                      1.2 km away
+                      {t("explore.away", "1.2 km away")}
                     </div>
                   </div>
                   
                   <div className="flex justify-between items-center">
                     <div>
-                      <span className="text-[13px] text-slate-500 font-medium">From</span>
+                      <span className="text-[13px] text-slate-500 font-medium">{t("explore.from", "From")}</span>
                       <p className="text-xl font-bold text-slate-800">${worker.hourlyRate || "55"}</p>
                     </div>
                     <Link href={`/jobs/${worker.id}`} className="font-bold text-white bg-primary hover:opacity-90 px-6 py-3 rounded-xl transition-colors active:scale-95 shadow-sm shadow-primary/20 text-sm">
-                      Book Now
+                      {t("explore.bookNow", "Book Now")}
                     </Link>
                   </div>
                 </div>
@@ -311,12 +313,12 @@ export default function ExploreClient({ initialWorkers, initialSearch }: { initi
                 <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4">
                   <Search size={24} className="text-slate-400" />
                 </div>
-                <h4 className="text-lg font-bold text-slate-800 mb-2">No professionals found</h4>
+                <h4 className="text-lg font-bold text-slate-800 mb-2">{t("explore.noProfessionals", "No professionals found")}</h4>
                 <p className="text-sm text-slate-500 max-w-[250px] mx-auto leading-relaxed">
-                  Try adjusting your filters or search term to find more results.
+                  {t("explore.adjustFilters", "Try adjusting your filters or search term to find more results.")}
                 </p>
                 <button onClick={clearSearch} className="mt-6 text-sm font-bold text-primary hover:text-primary/80">
-                  Clear Search
+                  {t("explore.clearSearch", "Clear Search")}
                 </button>
               </div>
             )}

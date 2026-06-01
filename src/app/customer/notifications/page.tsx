@@ -16,6 +16,7 @@ import {
   Loader2,
   ChevronRight
 } from "lucide-react";
+import { useLanguage } from "@/context/LanguageContext";
 
 interface Notification {
   id: string;
@@ -30,6 +31,7 @@ interface Notification {
 }
 
 export default function CustomerNotificationsPage() {
+  const { t } = useLanguage();
   const router = useRouter();
   const [activeTab, setActiveTab] = useState("All");
   const [notifications, setNotifications] = useState<Notification[]>([]);
@@ -182,7 +184,7 @@ export default function CustomerNotificationsPage() {
       <div className="bg-white px-5 pt-12 pb-4 shadow-[0_2px_8px_rgba(0,0,0,0.02)] sticky top-0 z-40 border-b border-[#F0F0F0] flex flex-col gap-3">
         <div className="flex justify-between items-start">
           <div>
-            <h1 className="text-xl font-black text-[#1A2340] tracking-tight">Notifications</h1>
+            <h1 className="text-xl font-black text-[#1A2340] tracking-tight">{t("notificationsPage.notifications")}</h1>
             <p className="text-xs text-[#888BA0] font-semibold mt-1">
               Stay updated on your bookings and activity.
             </p>
@@ -267,7 +269,7 @@ export default function CustomerNotificationsPage() {
             <div className="w-20 h-20 bg-slate-50 border border-slate-100 rounded-full flex items-center justify-center mb-5 text-[#888BA0] opacity-80 shadow-inner">
               <Bell size={34} className="stroke-[1.5]" />
             </div>
-            <h3 className="font-extrabold text-[#1A2340] text-[15px] mb-1.5">No Notifications Yet</h3>
+            <h3 className="font-extrabold text-[#1A2340] text-[15px] mb-1.5">{t("notificationsPage.noNotificationsYet")}</h3>
             <p className="text-xs text-[#888BA0] font-medium max-w-[240px] leading-relaxed">
               We'll notify you when new activity occurs. Keep working on bookings!
             </p>
