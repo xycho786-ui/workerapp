@@ -27,6 +27,29 @@ model User {
   conversationsAsUser Conversation[] @relation("ConversationUser")
   notifications     Notification[] @relation("UserNotifications")
   serviceRequests   ServiceRequest[] @relation("CustomerRequests")
+
+  // Profile enhancements
+  image                  String?
+  bookingNotifications   Boolean        @default(true)
+  messageNotifications   Boolean        @default(true)
+  otpNotifications       Boolean        @default(true)
+  marketingNotifications Boolean        @default(true)
+  savedWorkers           SavedWorker[]  @relation("CustomerSavedWorkers")
+
+  // Multi-Language and Settings
+  language               String         @default("en")
+  theme                  String         @default("light")
+  profileVisible         Boolean        @default(true)
+  locationSharing        Boolean        @default(true)
+  showOnlineStatus       Boolean        @default(true)
+  fontSize               String         @default("medium")
+  reducedAnimations      Boolean        @default(false)
+  highContrast           Boolean        @default(false)
+  reviewNotifications    Boolean        @default(true)
+  promotionalNotifications Boolean      @default(true)
+  systemNotifications    Boolean        @default(true)
+  preferredCategories    String[]       @default([])
+  favoriteServices       String[]       @default([])
 }
 
 model WorkerProfile {
@@ -59,9 +82,32 @@ model WorkerProfile {
   categoryId   String?
   category     Category? @relation(fields: [categoryId], references: [id])
   conversationsAsWorker Conversation[] @relation("ConversationWorker")
+
+  // Profile enhancements
+  portfolio          String[]       @default([])
+  languages          String[]       @default([])
+  workingHours       String?        @default("9:00 AM - 5:00 PM")
+  availabilityStatus String?        @default("AVAILABLE")
+  savedBy            SavedWorker[]  @relation("WorkerSavedBy")
+
+  // Worker Settings
+  serviceAvailability    Boolean        @default(true)
+  serviceAreas           String[]       @default([])
+  paymentPreference      String         @default("BANK_TRANSFER")
   
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
+}
+
+model SavedWorker {
+  id         String   @id @default(uuid())
+  customerId String
+  customer   User     @relation("CustomerSavedWorkers", fields: [customerId], references: [id], onDelete: Cascade)
+  workerId   String
+  worker     WorkerProfile @relation("WorkerSavedBy", fields: [workerId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+
+  @@unique([customerId, workerId])
 }
 
 model Category {
@@ -152,7 +198,9 @@ model Notification {
   title       String
   message     String
   type        NotificationType @default(INFO)
-  isRead      Boolean  @default(false)
+  category    String           @default("SYSTEM")
+  relatedId   String?
+  isRead      Boolean          @default(false)
   
   createdAt   DateTime @default(now())
 }

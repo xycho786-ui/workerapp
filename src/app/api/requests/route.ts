@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import postgres from 'postgres';
 import { createClient } from '@/utils/supabase/server';
+import { prisma } from '@/lib/prisma';
 
 export async function POST(request: Request) {
   const connectionString = process.env.DATABASE_URL;
@@ -53,19 +54,58 @@ export async function POST(request: Request) {
 
     const requestId = crypto.randomUUID();
     
-    // Since we can't guarantee the customerId exists in the DB if we hardcode 'test-customer-id', 
-    // We will simulate the success response for the UI development if we catch a foreign key error,
-    // or we just insert it.
-    
     try {
       await sql`
         INSERT INTO "ServiceRequest" (id, "customerId", category, description, budget, status, "updatedAt")
         VALUES (${requestId}, ${customerId}, ${category}, ${description}, ${budget}, 'OPEN', NOW())
       `;
       
+      // Create notification for customer
+      try {
+        await prisma.notification.create({
+          data: {
+            userId: customerId,
+            title: "Booking Request Submitted",
+            message: "Your request has been sent successfully.",
+            category: "SYSTEM",
+            relatedId: requestId,
+            type: "SUCCESS"
+          }
+        });
+      } catch (custNotifErr) {
+        console.error("Failed to create customer request notification:", custNotifErr);
+      }
+
+      // Find workers whose professions contain the category, and notify them
+      try {
+        const matchingWorkers = await prisma.workerProfile.findMany({
+          where: {
+            profession: {
+              has: category
+            }
+          },
+          select: {
+            userId: true
+          }
+        });
+
+        for (const worker of matchingWorkers) {
+          await prisma.notification.create({
+            data: {
+              userId: worker.userId,
+              title: "📥 New Service Request",
+              message: `A customer has requested your ${category} service.`,
+              category: "BOOKINGS",
+              relatedId: requestId,
+              type: "INFO"
+            }
+          });
+        }
+      } catch (workerNotifErr) {
+        console.error("Failed to notify matching workers:", workerNotifErr);
+      }
+
       // Handle file uploads (Voice, Images, Videos)
-      // In a real app, you'd upload these to S3/Cloud Storage and save the URLs
-      // For this implementation, we will just parse them from formData and log them
       const files = formData.getAll('media');
       for (const file of files) {
         if (file instanceof File) {
@@ -84,7 +124,6 @@ export async function POST(request: Request) {
       
     } catch (dbError: any) {
       console.warn("DB Error, likely because Prisma schema isn't pushed or mock customerId doesn't exist.", dbError.message);
-      // Fallback for UI demo purposes if DB schema is not pushed yet
       return NextResponse.json({ 
         message: 'Request received (Database insert skipped due to schema/fk constraints)',
         requestId 

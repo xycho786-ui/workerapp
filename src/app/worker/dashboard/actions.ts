@@ -54,6 +54,33 @@ export async function acceptJobRequest(requestId: string) {
       })
     ]);
 
+    // Create notifications for customer
+    try {
+      await prisma.notification.create({
+        data: {
+          userId: serviceRequest.customerId,
+          title: "✅ Worker Accepted Your Request",
+          message: `${dbUser.name} has accepted your ${serviceRequest.category} request.`,
+          category: "BOOKINGS",
+          relatedId: booking.id,
+          type: "INFO"
+        }
+      });
+
+      await prisma.notification.create({
+        data: {
+          userId: serviceRequest.customerId,
+          title: "🔐 Verification OTP Ready",
+          message: "Your service verification OTP has been generated.",
+          category: "OTP",
+          relatedId: booking.id,
+          type: "INFO"
+        }
+      });
+    } catch (err) {
+      console.error("Failed to create customer acceptance notifications:", err);
+    }
+
     // Create or find a conversation and add welcome message
     try {
       const conversation = await prisma.conversation.upsert({
@@ -83,6 +110,9 @@ export async function acceptJobRequest(requestId: string) {
 
     revalidatePath("/worker/dashboard");
     revalidatePath("/worker/jobs");
+    revalidatePath("/customer/jobs");
+    revalidatePath("/customer/notifications");
+    revalidatePath("/worker/notifications");
     return { success: true, booking };
   } catch (error: any) {
     console.error("Failed to accept job:", error);
@@ -97,6 +127,23 @@ export async function verifyOtpCode(bookingId: string, enteredOtp: string) {
 
     if (!user || !user.email) {
       throw new Error("Unauthorized");
+    }
+
+    // Fetch the booking with relations to create notifications
+    const booking = await prisma.booking.findUnique({
+      where: { id: bookingId },
+      include: {
+        customer: true,
+        worker: {
+          include: {
+            user: true
+          }
+        }
+      }
+    });
+
+    if (!booking) {
+      throw new Error("Booking not found");
     }
 
     // Deterministic OTP calculator based on booking ID
@@ -116,8 +163,38 @@ export async function verifyOtpCode(bookingId: string, enteredOtp: string) {
       },
     });
 
+    // Create notifications for Customer and Worker
+    try {
+      await prisma.notification.create({
+        data: {
+          userId: booking.customerId,
+          title: "🛠 Work Started",
+          message: "The worker has successfully verified the OTP and started the service.",
+          category: "BOOKINGS",
+          relatedId: booking.id,
+          type: "INFO"
+        }
+      });
+
+      await prisma.notification.create({
+        data: {
+          userId: booking.worker.userId,
+          title: "🔐 OTP Verified",
+          message: "Work has officially started.",
+          category: "BOOKINGS",
+          relatedId: booking.id,
+          type: "INFO"
+        }
+      });
+    } catch (err) {
+      console.error("Failed to create OTP verification notifications:", err);
+    }
+
     revalidatePath("/worker/dashboard");
     revalidatePath("/worker/jobs");
+    revalidatePath("/customer/jobs");
+    revalidatePath("/customer/notifications");
+    revalidatePath("/worker/notifications");
     return { success: true };
   } catch (error: any) {
     console.error("Failed to verify OTP:", error);
@@ -134,13 +211,73 @@ export async function completeBooking(bookingId: string) {
       throw new Error("Unauthorized");
     }
 
+    // Fetch the booking with relations to create notifications
+    const booking = await prisma.booking.findUnique({
+      where: { id: bookingId },
+      include: {
+        customer: true,
+        worker: {
+          include: {
+            user: true
+          }
+        }
+      }
+    });
+
+    if (!booking) {
+      throw new Error("Booking not found");
+    }
+
     await prisma.booking.update({
       where: { id: bookingId },
       data: { status: "COMPLETED" },
     });
 
+    // Create notifications
+    try {
+      // Customer notifications
+      await prisma.notification.create({
+        data: {
+          userId: booking.customerId,
+          title: "✅ Service Completed",
+          message: "Your service has been marked as completed.",
+          category: "BOOKINGS",
+          relatedId: booking.id,
+          type: "INFO"
+        }
+      });
+
+      await prisma.notification.create({
+        data: {
+          userId: booking.customerId,
+          title: "⭐ Rate Your Experience",
+          message: "Share your feedback about the completed service.",
+          category: "REVIEWS",
+          relatedId: booking.id,
+          type: "INFO"
+        }
+      });
+
+      // Worker notification for payment/earnings
+      await prisma.notification.create({
+        data: {
+          userId: booking.worker.userId,
+          title: "💰 Payment Received",
+          message: "You received payment for a completed service.",
+          category: "PAYMENTS",
+          relatedId: booking.id,
+          type: "INFO"
+        }
+      });
+    } catch (err) {
+      console.error("Failed to create booking completion notifications:", err);
+    }
+
     revalidatePath("/worker/dashboard");
     revalidatePath("/worker/jobs");
+    revalidatePath("/customer/jobs");
+    revalidatePath("/customer/notifications");
+    revalidatePath("/worker/notifications");
     return { success: true };
   } catch (error: any) {
     console.error("Failed to complete booking:", error);

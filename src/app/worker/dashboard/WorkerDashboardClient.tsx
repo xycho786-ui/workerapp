@@ -23,6 +23,7 @@ import {
 import Link from "next/link";
 import Portal from "@/components/Portal";
 import { acceptJobRequest, verifyOtpCode, completeBooking } from "./actions";
+import { useLanguage } from "@/context/LanguageContext";
 
 interface CustomerUser {
   name: string;
@@ -87,6 +88,7 @@ export default function WorkerDashboardClient({
   const [incomingRequests, setIncomingRequests] = useState<ServiceRequest[]>(openRequests);
   const [allBookings, setAllBookings] = useState<Booking[]>(bookings);
   const [onlineStatus, setOnlineStatus] = useState(workerProfile.isOnline);
+  const { t } = useLanguage();
   
   // Interactive action states
   const [otpInputs, setOtpInputs] = useState<Record<string, string>>({});
@@ -218,7 +220,7 @@ export default function WorkerDashboardClient({
               <h1 className="text-base font-extrabold text-[#1A2340] tracking-tight">Hi, {userName.split(" ")[0]} 👋</h1>
               <p className="text-[10px] text-slate-400 font-bold flex items-center gap-1">
                 <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full inline-block animate-pulse"></span>
-                Verified Pro Profile
+                {t("profile.verified")} Pro Profile
               </p>
             </div>
           </div>
@@ -230,7 +232,7 @@ export default function WorkerDashboardClient({
               }`}
             >
               <span className={`w-2 h-2 rounded-full inline-block ${onlineStatus ? "bg-[#00C896]" : "bg-gray-400"}`}></span>
-              <span className="text-[11px] font-bold uppercase tracking-wider">{onlineStatus ? "Online" : "Offline"}</span>
+              <span className={`text-[11px] font-bold uppercase tracking-wider`}>{onlineStatus ? t("common.online") : t("common.offline")}</span>
             </button>
             <Link href="/worker/notifications" className="w-9 h-9 rounded-full bg-[#F7F7F8] hover:bg-[#F0F0F2] flex items-center justify-center text-slate-600 transition-colors">
               <span className="text-base">🔔</span>
@@ -241,7 +243,7 @@ export default function WorkerDashboardClient({
 
       {/* 2. Today's Overview Statistics */}
       <div className="px-4 pt-5">
-        <h3 className="text-xs font-black text-[#1A2340] uppercase tracking-wider mb-3 px-1">Today's Overview</h3>
+        <h3 className="text-xs font-black text-[#1A2340] uppercase tracking-wider mb-3 px-1">{t("dashboard.recentActivity")}</h3>
         <div className="grid grid-cols-4 gap-2.5">
           <div className="bg-white rounded-2xl p-3 border border-slate-100 shadow-[0_4px_12px_rgba(0,0,0,0.01)] text-center flex flex-col justify-center min-h-[76px]">
             <span className="text-lg font-black text-[#1A2340]">{newRequestsCount}</span>
@@ -249,17 +251,17 @@ export default function WorkerDashboardClient({
           </div>
           <div className="bg-white rounded-2xl p-3 border border-slate-100 shadow-[0_4px_12px_rgba(0,0,0,0.01)] text-center flex flex-col justify-center min-h-[76px]">
             <span className="text-lg font-black text-indigo-600">{activeJobsCount}</span>
-            <span className="text-[9px] font-bold text-[#888BA0] mt-1 leading-tight">Active Jobs</span>
+            <span className="text-[9px] font-bold text-[#888BA0] mt-1 leading-tight">{t("jobs.active")}</span>
           </div>
           <div className="bg-white rounded-2xl p-3 border border-slate-100 shadow-[0_4px_12px_rgba(0,0,0,0.01)] text-center flex flex-col justify-center min-h-[76px]">
             <span className="text-lg font-black text-emerald-600">{completedJobsCount}</span>
-            <span className="text-[9px] font-bold text-[#888BA0] mt-1 leading-tight">Completed</span>
+            <span className="text-[9px] font-bold text-[#888BA0] mt-1 leading-tight">{t("jobs.completed")}</span>
           </div>
           <div className="bg-white rounded-2xl p-3 border border-slate-100 shadow-[0_4px_12px_rgba(0,0,0,0.01)] text-center flex flex-col justify-center min-h-[76px]">
             <span className="text-lg font-black text-amber-500 flex items-center justify-center gap-0.5">
               {workerProfile.rating || "5.0"}<span className="text-[10px] text-amber-400">★</span>
             </span>
-            <span className="text-[9px] font-bold text-[#888BA0] mt-1 leading-tight">Avg Rating</span>
+            <span className="text-[9px] font-bold text-[#888BA0] mt-1 leading-tight">{t("jobs.rating")}</span>
           </div>
         </div>
       </div>
@@ -506,7 +508,7 @@ export default function WorkerDashboardClient({
                   {/* Actions */}
                   <div className="flex gap-3 mt-4">
                     <Link 
-                      href="/worker/chat"
+                      href={`/worker/chat?bookingId=${bookingId}`}
                       className="flex-1 py-3 bg-[#1A2340] hover:bg-[#2D3F6A] text-white font-extrabold rounded-xl text-xs transition-colors flex items-center justify-center gap-1.5 active:scale-[0.98] shadow-sm shadow-[#1A2340]/10"
                     >
                       <MessageSquare size={14} />
@@ -621,7 +623,7 @@ export default function WorkerDashboardClient({
                       Complete Job
                     </button>
                     <Link 
-                      href="/worker/chat"
+                      href={`/worker/chat?bookingId=${bookingId}`}
                       className="px-5 py-3 bg-[#1A2340] hover:bg-[#2D3F6A] text-white font-bold rounded-xl text-xs transition-colors flex items-center justify-center active:scale-[0.98]"
                     >
                       Chat

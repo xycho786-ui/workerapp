@@ -35,12 +35,44 @@ export async function cancelBooking(bookingId: string) {
       throw new Error("Unauthorized");
     }
 
+    // Retrieve booking with worker details for notification
+    const booking = await prisma.booking.findUnique({
+      where: { id: bookingId },
+      include: {
+        worker: true
+      }
+    });
+
+    if (!booking) {
+      throw new Error("Booking not found");
+    }
+
     await prisma.booking.update({
       where: { id: bookingId },
       data: { status: "CANCELLED" },
     });
 
+    // Create worker notification
+    try {
+      await prisma.notification.create({
+        data: {
+          userId: booking.worker.userId,
+          title: "❌ Booking Cancelled",
+          message: "The customer cancelled the booking.",
+          category: "BOOKINGS",
+          relatedId: booking.id,
+          type: "WARNING"
+        }
+      });
+    } catch (err) {
+      console.error("Failed to create worker cancellation notification:", err);
+    }
+
     revalidatePath("/customer/jobs");
+    revalidatePath("/worker/dashboard");
+    revalidatePath("/worker/jobs");
+    revalidatePath("/customer/notifications");
+    revalidatePath("/worker/notifications");
     return { success: true };
   } catch (error: any) {
     console.error("Failed to cancel booking:", error);
@@ -73,6 +105,16 @@ export async function createReview({
       throw new Error("User not found");
     }
 
+    // Retrieve worker details for notification
+    const workerProfile = await prisma.workerProfile.findUnique({
+      where: { id: workerId },
+      include: { user: true }
+    });
+
+    if (!workerProfile) {
+      throw new Error("Worker profile not found");
+    }
+
     // Create review
     await prisma.review.create({
       data: {
@@ -99,7 +141,27 @@ export async function createReview({
       },
     });
 
+    // Create worker notification
+    try {
+      await prisma.notification.create({
+        data: {
+          userId: workerProfile.userId,
+          title: "⭐ New Review",
+          message: `You received a ${rating}-star review.`,
+          category: "REVIEWS",
+          relatedId: workerId,
+          type: "SUCCESS"
+        }
+      });
+    } catch (err) {
+      console.error("Failed to create worker review notification:", err);
+    }
+
     revalidatePath("/customer/jobs");
+    revalidatePath("/worker/dashboard");
+    revalidatePath("/worker/jobs");
+    revalidatePath("/customer/notifications");
+    revalidatePath("/worker/notifications");
     return { success: true };
   } catch (error: any) {
     console.error("Failed to submit review:", error);

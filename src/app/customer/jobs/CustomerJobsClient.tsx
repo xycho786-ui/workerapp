@@ -502,7 +502,7 @@ export default function CustomerJobsClient({
                       {isAccepted ? (
                         <>
                           <Link 
-                            href="/customer/chat"
+                            href={`/customer/chat?bookingId=${booking.id}`}
                             className="flex-1 py-3 bg-[#1A2340] hover:bg-[#2D3F6A] text-white font-bold rounded-xl text-xs transition-colors flex items-center justify-center gap-1.5 active:scale-[0.98] shadow-sm shadow-[#1A2340]/10"
                           >
                             <MessageSquare size={14} />
@@ -525,7 +525,7 @@ export default function CustomerJobsClient({
                             Track Progress
                           </button>
                           <Link 
-                            href="/customer/chat"
+                            href={`/customer/chat?bookingId=${booking.id}`}
                             className="px-6 py-3 bg-[#00A87A] hover:bg-[#008F68] text-white font-bold rounded-xl text-xs transition-colors flex items-center justify-center active:scale-[0.98]"
                           >
                             Chat

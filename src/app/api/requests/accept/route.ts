@@ -59,6 +59,33 @@ export async function POST(request: Request) {
       })
     ]);
 
+    // Create notifications for customer
+    try {
+      await prisma.notification.create({
+        data: {
+          userId: serviceRequest.customerId,
+          title: "✅ Worker Accepted Your Request",
+          message: `${dbUser.name} has accepted your ${serviceRequest.category} request.`,
+          category: "BOOKINGS",
+          relatedId: booking.id,
+          type: "INFO"
+        }
+      });
+
+      await prisma.notification.create({
+        data: {
+          userId: serviceRequest.customerId,
+          title: "🔐 Verification OTP Ready",
+          message: "Your service verification OTP has been generated.",
+          category: "OTP",
+          relatedId: booking.id,
+          type: "INFO"
+        }
+      });
+    } catch (err) {
+      console.error("Failed to create customer acceptance notifications:", err);
+    }
+
     // Create or find a conversation and add a welcome message
     try {
       const conversation = await prisma.conversation.upsert({
