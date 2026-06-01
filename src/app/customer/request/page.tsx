@@ -4,6 +4,7 @@ import { useState, useRef, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft, Camera, Mic, Paperclip, Banknote, Square, Trash2, Play, CircleStop, Loader2, Image as ImageIcon, X } from "lucide-react";
 import Link from "next/link";
+import Portal from "@/components/Portal";
 
 const QUICK_SELECTIONS: Record<string, string[]> = {
   Plumbing: ["Leaking Tap", "Blocked Toilet", "No Hot Water", "Burst Pipe", "Low Water Pressure", "Radiator Issue"],
@@ -365,64 +366,66 @@ function RequestFormContent() {
 
       {/* Camera Options Modal */}
       {showCameraOptions && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-          <div className="bg-white w-full max-w-md rounded-3xl overflow-hidden shadow-2xl animate-in slide-in-from-bottom-8 duration-300">
-            <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
-              <h3 className="font-bold text-slate-800 text-[15px]">Upload Evidence</h3>
-              <button 
-                type="button" 
-                onClick={() => setShowCameraOptions(false)}
-                className="p-1.5 bg-white rounded-full text-slate-500 hover:text-slate-800 border border-slate-200 shadow-sm transition-colors"
-              >
-                <X size={16} />
-              </button>
-            </div>
-            <div className="p-3">
-              <button
-                type="button"
-                onClick={() => {
-                  setShowCameraOptions(false);
-                  cameraInputRef.current?.click();
-                }}
-                className="w-full flex items-center gap-4 p-4 rounded-2xl hover:bg-slate-50 transition-colors active:scale-[0.98]"
-              >
-                <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center text-primary flex-shrink-0">
-                  <Camera size={22} />
-                </div>
-                <div className="text-left">
-                  <h4 className="font-bold text-slate-800 text-[15px]">Take a Photo</h4>
-                  <p className="text-[12px] text-slate-500 mt-0.5">Use your camera to capture the issue</p>
-                </div>
-              </button>
-              
-              <button
-                type="button"
-                onClick={() => {
-                  setShowCameraOptions(false);
-                  fileInputRef.current?.click();
-                }}
-                className="w-full flex items-center gap-4 p-4 rounded-2xl hover:bg-slate-50 transition-colors active:scale-[0.98] mt-1"
-              >
-                <div className="w-12 h-12 rounded-full bg-blue-50 flex items-center justify-center text-blue-500 flex-shrink-0">
-                  <ImageIcon size={22} />
-                </div>
-                <div className="text-left">
-                  <h4 className="font-bold text-slate-800 text-[15px]">Choose a Photo</h4>
-                  <p className="text-[12px] text-slate-500 mt-0.5">Select from your device gallery</p>
-                </div>
-              </button>
-            </div>
-            <div className="p-4 pt-0">
-              <button
-                type="button"
-                onClick={() => setShowCameraOptions(false)}
-                className="w-full py-3.5 bg-slate-100 text-slate-700 font-bold rounded-xl hover:bg-slate-200 transition-colors active:scale-[0.98]"
-              >
-                Cancel
-              </button>
+        <Portal>
+          <div className="fixed inset-0 z-[100] flex items-end justify-center bg-black/40 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+            <div className="bg-white w-full max-w-md rounded-3xl overflow-hidden shadow-2xl animate-in slide-in-from-bottom-8 duration-300">
+              <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+                <h3 className="font-bold text-slate-800 text-[15px]">Upload Evidence</h3>
+                <button 
+                  type="button" 
+                  onClick={() => setShowCameraOptions(false)}
+                  className="p-1.5 bg-white rounded-full text-slate-500 hover:text-slate-800 border border-slate-200 shadow-sm transition-colors"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+              <div className="p-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowCameraOptions(false);
+                    cameraInputRef.current?.click();
+                  }}
+                  className="w-full flex items-center gap-4 p-4 rounded-2xl hover:bg-slate-50 transition-colors active:scale-[0.98]"
+                >
+                  <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center text-primary flex-shrink-0">
+                    <Camera size={22} />
+                  </div>
+                  <div className="text-left">
+                    <h4 className="font-bold text-slate-800 text-[15px]">Take a Photo</h4>
+                    <p className="text-[12px] text-slate-500 mt-0.5">Use your camera to capture the issue</p>
+                  </div>
+                </button>
+                
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowCameraOptions(false);
+                    fileInputRef.current?.click();
+                  }}
+                  className="w-full flex items-center gap-4 p-4 rounded-2xl hover:bg-slate-50 transition-colors active:scale-[0.98] mt-1"
+                >
+                  <div className="w-12 h-12 rounded-full bg-blue-50 flex items-center justify-center text-blue-500 flex-shrink-0">
+                    <ImageIcon size={22} />
+                  </div>
+                  <div className="text-left">
+                    <h4 className="font-bold text-slate-800 text-[15px]">Choose a Photo</h4>
+                    <p className="text-[12px] text-slate-500 mt-0.5">Select from your device gallery</p>
+                  </div>
+                </button>
+              </div>
+              <div className="p-4 pt-0">
+                <button
+                  type="button"
+                  onClick={() => setShowCameraOptions(false)}
+                  className="w-full py-3.5 bg-slate-100 text-slate-700 font-bold rounded-xl hover:bg-slate-200 transition-colors active:scale-[0.98]"
+                >
+                  Cancel
+                </button>
+              </div>
             </div>
           </div>
-        </div>
+        </Portal>
       )}
     </div>
   );
