@@ -203,7 +203,7 @@ export async function verifyOtpCode(bookingId: string, enteredOtp: string) {
   }
 }
 
-export async function completeBooking(bookingId: string) {
+export async function completeBooking(bookingId: string, completionImageUrl: string | null = null) {
   try {
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
@@ -231,7 +231,10 @@ export async function completeBooking(bookingId: string) {
 
     await prisma.booking.update({
       where: { id: bookingId },
-      data: { status: "AWAITING_PAYMENT" },
+      data: { 
+        status: "AWAITING_PAYMENT",
+        completionImage: completionImageUrl
+      },
     });
 
     // Create notifications

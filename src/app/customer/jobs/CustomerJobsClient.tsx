@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { 
   MessageSquare, 
   Info, 
@@ -85,6 +85,26 @@ export default function CustomerJobsClient({
   // Modals state
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
   const [selectedRequest, setSelectedRequest] = useState<ServiceRequest | null>(null);
+
+  // Auto-open detail modal if bookingId or requestId is in the URL search params
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const bookingId = params.get("bookingId");
+      const requestId = params.get("requestId");
+      if (bookingId) {
+        const found = bookings.find(b => b.id === bookingId);
+        if (found) {
+          setSelectedBooking(found);
+        }
+      } else if (requestId) {
+        const found = requests.find(r => r.id === requestId);
+        if (found) {
+          setSelectedRequest(found);
+        }
+      }
+    }
+  }, [bookings, requests]);
   const [ratingWorkerId, setRatingWorkerId] = useState<string | null>(null);
   const [ratingVal, setRatingVal] = useState<number>(5);
   const [reviewComment, setReviewComment] = useState("");

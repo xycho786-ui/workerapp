@@ -1,17 +1,9 @@
 import { NextResponse } from 'next/server';
-import postgres from 'postgres';
 import { createClient } from '@/utils/supabase/server';
 import { prisma } from '@/lib/prisma';
 import { getDistance } from '@/utils/distance';
 
 export async function POST(request: Request) {
-  const connectionString = process.env.DATABASE_URL;
-  if (!connectionString) {
-    return NextResponse.json({ message: 'Database connection string missing' }, { status: 500 });
-  }
-
-  const sql = postgres(connectionString);
-
   try {
     const formData = await request.formData();
     
@@ -24,9 +16,12 @@ export async function POST(request: Request) {
       const supabase = await createClient();
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
-        const dbUsers = await sql`SELECT id FROM "User" WHERE id = ${user.id}`;
-        if (dbUsers.length > 0) {
-          customerId = dbUsers[0].id;
+        const dbUser = await prisma.user.findUnique({
+          where: { id: user.id },
+          select: { id: true }
+        });
+        if (dbUser) {
+          customerId = dbUser.id;
         }
       }
     } catch (e) {
@@ -34,9 +29,12 @@ export async function POST(request: Request) {
     }
 
     if (!customerId) {
-      const dbUsers = await sql`SELECT id FROM "User" WHERE role = 'CUSTOMER' LIMIT 1`;
-      if (dbUsers.length > 0) {
-        customerId = dbUsers[0].id;
+      const dbUser = await prisma.user.findFirst({
+        where: { role: 'CUSTOMER' },
+        select: { id: true }
+      });
+      if (dbUser) {
+        customerId = dbUser.id;
       }
     }
 
@@ -114,58 +112,94 @@ export async function POST(request: Request) {
       console.error("Failed to search and notify matching workers by distance:", workerSearchErr);
     }
 
-    try {
-      await sql`
-        INSERT INTO "ServiceRequest" (id, "customerId", category, description, budget, status, "updatedAt", latitude, longitude, "assignedWorkerId")
-        VALUES (${requestId}, ${customerId}, ${category}, ${description}, ${budget}, 'OPEN', NOW(), ${latitude}, ${longitude}, ${assignedWorkerId})
-      `;
-      
-      // Create notification for customer
-      try {
-        await prisma.notification.create({
+    // Handle actual file uploads to Supabase storage (Voice, Images, Videos) outside transaction
+    const mediaRecords: Array<{ id: string; url: string; type: 'IMAGE' | 'VIDEO' | 'AUDIO' }> = [];
+    const files = formData.getAll('media');
+    const supabase = await createClient();
+
+    for (const file of files) {
+      if (file instanceof File && file.size > 0) {
+        const mediaId = crypto.randomUUID();
+        let type: 'IMAGE' | 'VIDEO' | 'AUDIO' = 'IMAGE';
+        if (file.type.startsWith('video/')) type = 'VIDEO';
+        else if (file.type.startsWith('audio/')) type = 'AUDIO';
+
+        const ext = file.name.split('.').pop() || 'bin';
+        const filePath = `${requestId}/${mediaId}.${ext}`;
+        const arrayBuffer = await file.arrayBuffer();
+        const buffer = Buffer.from(arrayBuffer);
+
+        const { data: uploadData, error: uploadError } = await supabase.storage
+          .from('service-media')
+          .upload(filePath, buffer, {
+            contentType: file.type,
+            upsert: true
+          });
+
+        if (uploadError) {
+          console.error('Failed to upload media to Supabase:', uploadError);
+          throw new Error(`Failed to upload media: ${uploadError.message}`);
+        }
+
+        const { data: urlData } = supabase.storage
+          .from('service-media')
+          .getPublicUrl(filePath);
+
+        mediaRecords.push({
+          id: mediaId,
+          url: urlData.publicUrl,
+          type
+        });
+      }
+    }
+
+    // Create the ServiceRequest and matching media/notifications inside a database transaction
+    await prisma.$transaction(async (tx) => {
+      await tx.serviceRequest.create({
+        data: {
+          id: requestId,
+          customerId,
+          category,
+          description,
+          budget,
+          status: 'OPEN',
+          latitude,
+          longitude,
+          assignedWorkerId,
+        }
+      });
+
+      for (const record of mediaRecords) {
+        await tx.media.create({
           data: {
-            userId: customerId,
-            title: "Booking Request Submitted",
-            message: "Your request has been sent successfully.",
-            category: "SYSTEM",
-            relatedId: requestId,
-            type: "SUCCESS"
+            id: record.id,
+            url: record.url,
+            type: record.type,
+            serviceRequestId: requestId,
           }
         });
-      } catch (custNotifErr) {
-        console.error("Failed to create customer request notification:", custNotifErr);
       }
+    });
 
-      // Handle file uploads (Voice, Images, Videos)
-      const files = formData.getAll('media');
-      for (const file of files) {
-        if (file instanceof File) {
-          const mediaId = crypto.randomUUID();
-          let type = 'IMAGE';
-          if (file.type.startsWith('video/')) type = 'VIDEO';
-          if (file.type.startsWith('audio/')) type = 'AUDIO';
-          
-          const fakeUrl = `https://storage.example.com/${file.name}`;
-          await sql`
-            INSERT INTO "Media" (id, url, type, "serviceRequestId")
-            VALUES (${mediaId}, ${fakeUrl}, CAST(${type} AS "MediaType"), ${requestId})
-          `;
+    // Create notification for customer
+    try {
+      await prisma.notification.create({
+        data: {
+          userId: customerId,
+          title: "Booking Request Submitted",
+          message: "Your request has been sent successfully.",
+          category: "SYSTEM",
+          relatedId: requestId,
+          type: "SUCCESS"
         }
-      }
-      
-    } catch (dbError: any) {
-      console.warn("DB Error, likely because Prisma schema isn't pushed or mock customerId doesn't exist.", dbError.message);
-      return NextResponse.json({ 
-        message: 'Request received (Database insert skipped due to schema/fk constraints)',
-        requestId 
-      }, { status: 201 });
+      });
+    } catch (custNotifErr) {
+      console.error("Failed to create customer request notification:", custNotifErr);
     }
 
     return NextResponse.json({ message: 'Request created successfully', id: requestId }, { status: 201 });
   } catch (error: any) {
     console.error('Failed to create service request:', error);
     return NextResponse.json({ message: 'Internal server error', error: error.message }, { status: 500 });
-  } finally {
-    await sql.end();
   }
 }

@@ -146,6 +146,7 @@ model Booking {
   scheduledAt DateTime?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+  completionImage String?
 }
 
 model Review {
@@ -302,16 +303,24 @@ model Payment {
 }
 
 model Invoice {
-  id            String   @id @default(uuid())
-  invoiceNumber String   @unique
-  date          DateTime @default(now())
+  id            String        @id @default(uuid())
+  invoiceNumber String        @unique
+  date          DateTime      @default(now())
   totalAmount   Float
-  
-  paymentId     String   @unique
-  payment       Payment  @relation(fields: [paymentId], references: [id], onDelete: Cascade)
-  
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+
+  // Persistent HTML for retrieval (immutable after generation)
+  htmlContent   String?       @db.Text
+
+  // Email delivery tracking
+  emailStatus   EmailStatus   @default(PENDING)
+  emailSentAt   DateTime?
+  emailAttempts Int           @default(0)
+
+  paymentId     String        @unique
+  payment       Payment       @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
 }
 
 enum PaymentStatus {
@@ -328,4 +337,10 @@ enum PaymentMethod {
   CREDIT_CARD
   NET_BANKING
   WALLET
+}
+
+enum EmailStatus {
+  PENDING
+  SENT
+  FAILED
 }

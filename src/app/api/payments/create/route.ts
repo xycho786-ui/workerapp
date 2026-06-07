@@ -21,7 +21,7 @@ export async function POST(req: Request) {
 
     const { bookingId, amount, method } = await req.json();
 
-    if (!bookingId || !amount) {
+    if (!bookingId || amount == null) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
 

@@ -15,7 +15,9 @@ import {
   Loader2,
   ChevronRight,
   ShieldCheck,
-  CreditCard
+  CreditCard,
+  X,
+  Calendar
 } from "lucide-react";
 
 interface Notification {
@@ -36,6 +38,7 @@ export default function WorkerNotificationsPage() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [selectedNotification, setSelectedNotification] = useState<Notification | null>(null);
 
   const categories = ["All", "Jobs", "Messages", "Payments", "System"];
 
@@ -89,18 +92,8 @@ export default function WorkerNotificationsPage() {
       console.error("Failed to mark notification as read:", e);
     }
 
-    // Worker navigation logic
-    if (notif.category === "MESSAGES" && notif.relatedId) {
-      router.push(`/worker/chat?bookingId=${notif.relatedId}`);
-    } else if (notif.category === "BOOKINGS" || notif.category === "OTP") {
-      router.push("/worker/dashboard");
-    } else if (notif.category === "PAYMENTS") {
-      router.push("/worker/dashboard"); // highlights earnings card
-    } else if (notif.category === "REVIEWS") {
-      router.push("/worker/dashboard"); // highlights reviews feed
-    } else {
-      router.push("/worker/dashboard");
-    }
+    // Set selected notification to display details modal
+    setSelectedNotification(notif);
   };
 
   // Helper for notification icons and styling based on category
@@ -330,6 +323,105 @@ export default function WorkerNotificationsPage() {
         )}
       </div>
 
+      {/* Notification Details Modal */}
+      {selectedNotification && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <div className="bg-white w-full max-w-md rounded-3xl overflow-hidden shadow-2xl border border-slate-100 flex flex-col animate-in zoom-in-95 duration-200">
+            
+            {/* Category Gradient Header */}
+            <div className={`p-6 text-white flex flex-col items-center justify-center relative bg-gradient-to-br ${
+              selectedNotification.category.toUpperCase() === "BOOKINGS" ? "from-blue-500 to-indigo-600" :
+              selectedNotification.category.toUpperCase() === "MESSAGES" ? "from-indigo-500 to-purple-600" :
+              selectedNotification.category.toUpperCase() === "OTP" ? "from-emerald-400 to-teal-600" :
+              selectedNotification.category.toUpperCase() === "PAYMENTS" ? "from-teal-400 to-emerald-600" :
+              selectedNotification.category.toUpperCase() === "REVIEWS" ? "from-amber-400 to-orange-500" :
+              "from-slate-600 to-slate-700"
+            }`}>
+              <button 
+                onClick={() => setSelectedNotification(null)}
+                className="absolute top-4 right-4 p-1.5 rounded-full bg-white/20 hover:bg-white/30 text-white border-none cursor-pointer transition-colors"
+              >
+                <X size={14} />
+              </button>
+              
+              <div className="w-14 h-14 rounded-full bg-white flex items-center justify-center text-[#1A2340] mb-3 shadow-md">
+                {selectedNotification.category.toUpperCase() === "BOOKINGS" && <Calendar size={24} className="text-blue-600" />}
+                {selectedNotification.category.toUpperCase() === "MESSAGES" && <MessageSquare size={24} className="text-indigo-600" />}
+                {selectedNotification.category.toUpperCase() === "OTP" && <Lock size={24} className="text-emerald-600" />}
+                {selectedNotification.category.toUpperCase() === "PAYMENTS" && <DollarSign size={24} className="text-teal-600" />}
+                {selectedNotification.category.toUpperCase() === "REVIEWS" && <Star size={24} className="text-amber-500 fill-amber-500" />}
+                {selectedNotification.category.toUpperCase() !== "BOOKINGS" && 
+                 selectedNotification.category.toUpperCase() !== "MESSAGES" && 
+                 selectedNotification.category.toUpperCase() !== "OTP" && 
+                 selectedNotification.category.toUpperCase() !== "PAYMENTS" && 
+                 selectedNotification.category.toUpperCase() !== "REVIEWS" && <Info size={24} className="text-slate-600" />}
+              </div>
+              
+              <span className="text-[10px] font-black uppercase tracking-widest bg-white/20 px-2.5 py-1 rounded-full">
+                {selectedNotification.category}
+              </span>
+            </div>
+
+            {/* Content Body */}
+            <div className="p-6 space-y-4">
+              <div>
+                <h3 className="text-base font-black text-[#1A2340] leading-tight">
+                  {selectedNotification.title}
+                </h3>
+                <span className="text-[10px] font-bold text-slate-400 block mt-1">
+                  Received {formatTimeAgo(selectedNotification.createdAt)} ({new Date(selectedNotification.createdAt).toLocaleString()})
+                </span>
+              </div>
+
+              <p className="text-xs text-slate-600 leading-relaxed bg-slate-50 p-4 rounded-2xl border border-slate-100 font-semibold text-left">
+                {selectedNotification.message}
+              </p>
+            </div>
+
+            {/* Footer Actions */}
+            <div className="p-4 border-t border-slate-100 bg-slate-50/50 flex gap-3">
+              <button
+                onClick={() => setSelectedNotification(null)}
+                className="flex-1 py-3 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 font-bold rounded-xl text-xs transition-colors cursor-pointer active:scale-95 shadow-sm"
+              >
+                Close
+              </button>
+              
+              {selectedNotification.relatedId && (
+                <button
+                  onClick={() => {
+                    const relatedId = selectedNotification.relatedId;
+                    const category = selectedNotification.category.toUpperCase();
+                    setSelectedNotification(null);
+                    
+                    if (category === "MESSAGES") {
+                      router.push(`/worker/chat?bookingId=${relatedId}`);
+                    } else if (category === "BOOKINGS" || category === "OTP" || category === "PAYMENTS" || category === "REVIEWS") {
+                      router.push(`/worker/dashboard?bookingId=${relatedId}`);
+                    } else {
+                      router.push("/worker/dashboard");
+                    }
+                  }}
+                  className="flex-1 py-3 bg-[#1A2340] hover:bg-[#2D3F6A] text-white font-extrabold rounded-xl text-xs transition-colors cursor-pointer flex items-center justify-center gap-1.5 active:scale-95 shadow-sm shadow-[#1A2340]/10"
+                >
+                  {selectedNotification.category.toUpperCase() === "MESSAGES" ? (
+                    <>
+                      <MessageSquare size={13} />
+                      Open Chat
+                    </>
+                  ) : (
+                    <>
+                      <Briefcase size={13} />
+                      Open Job Panel
+                    </>
+                  )}
+                </button>
+              )}
+            </div>
+
+          </div>
+        </div>
+      )}
     </div>
   );
 }

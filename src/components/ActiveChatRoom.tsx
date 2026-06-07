@@ -225,8 +225,15 @@ export default function ActiveChatRoom({
       if (!pendingAudioRef.current) {
         pendingAudioRef.current = new Audio(pendingVoice.voiceUrl);
         pendingAudioRef.current.onended = () => setIsPlayingPendingVoice(false);
+        pendingAudioRef.current.onerror = () => {
+          console.warn("Failed to load pending voice note");
+          setIsPlayingPendingVoice(false);
+        };
       }
-      pendingAudioRef.current.play();
+      pendingAudioRef.current.play().catch(e => {
+        console.warn("Failed to play pending voice:", e);
+        setIsPlayingPendingVoice(false);
+      });
       setIsPlayingPendingVoice(true);
     }
   };
@@ -350,10 +357,17 @@ export default function ActiveChatRoom({
       if (!player) {
         player = new Audio(voiceUrl);
         player.onended = () => setPlayingAudioId(null);
+        player.onerror = () => {
+          console.warn("Failed to load chat message audio:", voiceUrl);
+          setPlayingAudioId(null);
+        };
         audioPlayersRef.current[msgId] = player;
       }
       
-      player.play();
+      player.play().catch(e => {
+        console.warn("Failed to play chat message audio:", e);
+        setPlayingAudioId(null);
+      });
       setPlayingAudioId(msgId);
     }
   };

@@ -132,9 +132,6 @@ function RequestFormContent() {
       formData.append("category", category);
       formData.append("description", description);
       if (budget) formData.append("budget", budget);
-      
-      // Mock customer ID
-      formData.append("customerId", "mock-customer-id");
 
       const lat = coords?.latitude ?? 40.7128;
       const lng = coords?.longitude ?? -74.0060;
@@ -294,7 +291,7 @@ function RequestFormContent() {
                 <div className="flex items-center gap-2 w-full justify-center mb-1">
                   <button type="button" onClick={() => {
                     const audio = new Audio(audioUrl);
-                    audio.play();
+                    audio.play().catch(e => console.warn("Failed to play local audio preview:", e));
                   }} className="p-1.5 bg-slate-200 rounded-full text-slate-700">
                     <Play size={14} />
                   </button>

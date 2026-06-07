@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { 
   MessageSquare, 
   Check, 
@@ -17,28 +17,30 @@ import {
   User,
   Info,
   Play,
+  Pause,
   CheckCircle2,
-  Lock
+  Lock,
+  Volume2,
+  Camera,
+  Trash2
 } from "lucide-react";
 import Link from "next/link";
 import Portal from "@/components/Portal";
 import { acceptJobRequest, verifyOtpCode, completeBooking, rejectJobRequest } from "./actions";
 import { useLanguage } from "@/context/LanguageContext";
+import { createClient } from "@/utils/supabase/client";
 
 interface CustomerUser {
   name: string;
   email: string;
 }
 
-interface Booking {
+interface Media {
   id: string;
-  status: "PENDING" | "ACCEPTED" | "REJECTED" | "IN_PROGRESS" | "COMPLETED" | "CANCELLED" | "AWAITING_PAYMENT" | "PAYMENT_COMPLETED";
-  jobDetails: string;
-  price: number | null;
-  scheduledAt: Date | null;
-  createdAt: Date;
-  updatedAt: Date;
-  customer: CustomerUser;
+  url: string;
+  type: "IMAGE" | "VIDEO" | "AUDIO";
+  serviceRequestId: string;
+  createdAt: Date | string;
 }
 
 interface ServiceRequest {
@@ -47,15 +49,29 @@ interface ServiceRequest {
   description: string;
   budget: number | null;
   status: "OPEN" | "MATCHED" | "CLOSED";
-  createdAt: Date;
+  createdAt: Date | string;
   customer: CustomerUser;
+  media?: Media[];
+}
+
+interface Booking {
+  id: string;
+  status: "PENDING" | "ACCEPTED" | "REJECTED" | "IN_PROGRESS" | "COMPLETED" | "CANCELLED" | "AWAITING_PAYMENT" | "PAYMENT_COMPLETED";
+  jobDetails: string;
+  price: number | null;
+  scheduledAt: Date | string | null;
+  createdAt: Date | string;
+  updatedAt: Date | string;
+  customer: CustomerUser;
+  serviceRequest?: ServiceRequest | null;
+  completionImage?: string | null;
 }
 
 interface Review {
   id: string;
   rating: number;
   comment: string | null;
-  createdAt: Date;
+  createdAt: Date | string;
   reviewer: CustomerUser;
 }
 
@@ -99,6 +115,33 @@ export default function WorkerDashboardClient({
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
   const [selectedRequest, setSelectedRequest] = useState<ServiceRequest | null>(null);
 
+  // Job Completion Upload states
+  const [completionUploadBookingId, setCompletionUploadBookingId] = useState<string | null>(null);
+  const [completionPhotoFile, setCompletionPhotoFile] = useState<File | null>(null);
+  const [completionPhotoBase64, setCompletionPhotoBase64] = useState<string | null>(null);
+  const [completionUploadError, setCompletionUploadError] = useState<string | null>(null);
+  const [completionUploading, setCompletionUploading] = useState(false);
+
+  // Auto-open detail modal if bookingId or requestId is in the URL search params
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const bookingId = params.get("bookingId");
+      const requestId = params.get("requestId");
+      if (bookingId) {
+        const found = allBookings.find(b => b.id === bookingId);
+        if (found) {
+          setSelectedBooking(found);
+        }
+      } else if (requestId) {
+        const found = incomingRequests.find(r => r.id === requestId);
+        if (found) {
+          setSelectedRequest(found);
+        }
+      }
+    }
+  }, [allBookings, incomingRequests]);
+
   // Helper for customer avatars (stable headshots)
   const getCustomerAvatar = (customerId: string) => {
     const avatars = [
@@ -111,6 +154,189 @@ export default function WorkerDashboardClient({
     ];
     const num = customerId.split("").reduce((acc, char) => acc + char.charCodeAt(0), 0);
     return avatars[num % avatars.length];
+  };
+
+  // Real audio playback states
+  const [playingAudioId, setPlayingAudioId] = useState<string | null>(null);
+  const [audioPlaybackTime, setAudioPlaybackTime] = useState<Record<string, number>>({});
+  const [audioDurations, setAudioDurations] = useState<Record<string, number>>({});
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  const [mediaErrors, setMediaErrors] = useState<Record<string, boolean>>({});
+  const [lightboxError, setLightboxError] = useState(false);
+
+  const handlePlayAudio = (mediaId: string, url: string) => {
+    if (playingAudioId === mediaId) {
+      handleStopAudio();
+      return;
+    }
+
+    handleStopAudio();
+    setPlayingAudioId(mediaId);
+
+    const audio = new Audio(url);
+    audioRef.current = audio;
+
+    audio.addEventListener('loadedmetadata', () => {
+      setAudioDurations(prev => ({ ...prev, [mediaId]: audio.duration }));
+    });
+
+    audio.addEventListener('timeupdate', () => {
+      setAudioPlaybackTime(prev => ({ ...prev, [mediaId]: audio.currentTime }));
+    });
+
+    audio.addEventListener('ended', () => {
+      setPlayingAudioId(null);
+      setAudioPlaybackTime(prev => ({ ...prev, [mediaId]: 0 }));
+    });
+
+    audio.addEventListener('error', (e) => {
+      console.warn("Audio failed to load:", e);
+      setMediaErrors(prev => ({ ...prev, [mediaId]: true }));
+      setPlayingAudioId(null);
+    });
+
+    audio.play().catch(err => {
+      console.warn("Audio playback failed:", err);
+      setMediaErrors(prev => ({ ...prev, [mediaId]: true }));
+      setPlayingAudioId(null);
+    });
+  };
+
+  const handleStopAudio = () => {
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current = null;
+    }
+    setPlayingAudioId(null);
+  };
+
+  useEffect(() => {
+    return () => {
+      if (audioRef.current) {
+        audioRef.current.pause();
+      }
+    };
+  }, []);
+
+  // Lightbox and Media Gallery nested component
+  const [activeLightboxImage, setActiveLightboxImage] = useState<string | null>(null);
+
+  // Reset lightbox error when active image changes
+  useEffect(() => {
+    setLightboxError(false);
+  }, [activeLightboxImage]);
+
+  const formatTime = (time: number) => {
+    if (isNaN(time)) return "0:00";
+    const mins = Math.floor(time / 60);
+    const secs = Math.floor(time % 60);
+    return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
+  };
+
+  const MediaGallery = ({ media = [], category = "Default" }: { media?: Media[]; category?: string }) => {
+    if (!media || media.length === 0) return null;
+
+    const images = media.filter(m => m.type === "IMAGE" || m.type === "VIDEO");
+    const audios = media.filter(m => m.type === "AUDIO");
+
+    return (
+      <div className="space-y-3 mt-2.5 bg-slate-50/70 p-3.5 rounded-2xl border border-slate-100/80">
+        {/* Audios */}
+        {audios.length > 0 && (
+          <div className="space-y-2">
+            {audios.map(audio => {
+              const isPlaying = playingAudioId === audio.id;
+              const currentTime = audioPlaybackTime[audio.id] || 0;
+              const duration = audioDurations[audio.id] || 0;
+              const progress = duration > 0 ? (currentTime / duration) * 100 : 0;
+              const hasError = mediaErrors[audio.id];
+
+              return (
+                <div key={audio.id} className="bg-white rounded-2xl p-3 border border-slate-100 flex items-center gap-3 shadow-sm">
+                  <button
+                    type="button"
+                    disabled={hasError}
+                    onClick={() => handlePlayAudio(audio.id, audio.url)}
+                    className={`w-9 h-9 rounded-full flex items-center justify-center cursor-pointer transition-all ${
+                      hasError ? "bg-slate-50 text-slate-300 cursor-not-allowed" :
+                      isPlaying ? "bg-[#E8514A] text-white" : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                    } border-none shadow-sm flex-shrink-0`}
+                  >
+                    {hasError ? (
+                      <svg className="w-4 h-4 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                      </svg>
+                    ) : isPlaying ? (
+                      <Pause size={15} />
+                    ) : (
+                      <Play size={15} className="ml-0.5" />
+                    )}
+                  </button>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex justify-between items-center text-[9px] text-slate-400 font-bold uppercase tracking-wider mb-1">
+                      <span className="flex items-center gap-1">
+                        <Volume2 size={12} className={hasError ? "text-slate-300" : "text-[#E8514A]"} /> 
+                        {hasError ? "Voice Note (Failed to load)" : "Voice Note"}
+                      </span>
+                      <span>{hasError ? "--:--" : isPlaying ? `${formatTime(currentTime)} / ${duration > 0 ? formatTime(duration) : "--:--"}` : duration > 0 ? formatTime(duration) : "--:--"}</span>
+                    </div>
+                    {/* Progress bar */}
+                    <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden relative">
+                      <div 
+                        className={`h-full ${hasError ? "bg-slate-200" : "bg-[#E8514A]"} rounded-full transition-all duration-300`}
+                        style={{ width: `${hasError ? 100 : progress}%` }}
+                      />
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Images */}
+        {images.length > 0 && (
+          <div className="space-y-2">
+            <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block pl-0.5">Uploaded Evidence</span>
+            <div className="flex flex-wrap gap-2">
+              {images.map(image => {
+                const fileName = image.url.split("/").pop() || "evidence.jpg";
+                const hasError = mediaErrors[image.id];
+
+                return (
+                  <div key={image.id} className="flex flex-col items-center">
+                    <div 
+                      onClick={() => !hasError && setActiveLightboxImage(image.url)}
+                      className="w-16 h-16 rounded-xl overflow-hidden border border-slate-200 cursor-pointer hover:opacity-90 active:scale-95 transition-all shadow-sm flex-shrink-0 bg-white flex items-center justify-center"
+                    >
+                      {hasError ? (
+                        <div className="flex flex-col items-center justify-center text-slate-400 p-1 text-center bg-slate-50 w-full h-full">
+                          <svg className="w-5 h-5 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                          </svg>
+                          <span className="text-[7px] font-bold text-slate-400 mt-0.5">Failed to load</span>
+                        </div>
+                      ) : (
+                        <img
+                          src={image.url}
+                          alt="Customer upload"
+                          onError={() => {
+                            setMediaErrors(prev => ({ ...prev, [image.id]: true }));
+                          }}
+                          className="w-full h-full object-cover"
+                        />
+                      )}
+                    </div>
+                    <span className="text-[8px] text-slate-400 font-bold max-w-[64px] truncate mt-1">{fileName}</span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+      </div>
+    );
   };
 
   // Reject Request
@@ -165,15 +391,14 @@ export default function WorkerDashboardClient({
   };
 
   // Complete job
-  const handleCompleteJob = async (bookingId: string) => {
-    if (!confirm("Are you sure the service has been completed?")) return;
+  const handleCompleteJob = async (bookingId: string, completionImage: string | null = null) => {
     setLoadingAction(prev => ({ ...prev, [bookingId]: true }));
-    const res = await completeBooking(bookingId);
+    const res = await completeBooking(bookingId, completionImage);
     setLoadingAction(prev => ({ ...prev, [bookingId]: false }));
 
     if (res.success) {
       alert("Job marked as Completed! Awaiting customer payment.");
-      setAllBookings(prev => prev.map(b => b.id === bookingId ? { ...b, status: "AWAITING_PAYMENT" as const } : b));
+      setAllBookings(prev => prev.map(b => b.id === bookingId ? { ...b, status: "AWAITING_PAYMENT" as const, completionImage } : b));
       setSelectedBooking(null);
     } else {
       alert("Failed to complete booking: " + res.error);
@@ -347,9 +572,15 @@ export default function WorkerDashboardClient({
                   </span>
                 </div>
 
-                <p className="text-xs text-slate-600 font-medium leading-relaxed mb-4 bg-slate-50/50 p-3 rounded-xl border border-slate-100">
+                <p className="text-xs text-slate-600 font-medium leading-relaxed mb-3 bg-slate-50/50 p-3 rounded-xl border border-slate-100">
                   {req.description}
                 </p>
+
+                {req.media && req.media.length > 0 && (
+                  <div className="mb-4 animate-in fade-in duration-200">
+                    <MediaGallery media={req.media} category={req.category} />
+                  </div>
+                )}
 
                 <div className="flex justify-between items-center mb-4 px-1 text-[11px] font-bold text-slate-500">
                   <span className="flex items-center gap-1"><Calendar size={13} /> Today</span>
@@ -385,7 +616,7 @@ export default function WorkerDashboardClient({
                   </div>
                 </div>
 
-                <div className="flex gap-3 mt-4">
+                <div className="flex gap-2 mt-4">
                   <button 
                     onClick={() => handleAcceptRequest(req.id)}
                     disabled={loadingAction[req.id]}
@@ -394,8 +625,15 @@ export default function WorkerDashboardClient({
                     Accept Request
                   </button>
                   <button 
+                    type="button"
+                    onClick={() => setSelectedRequest(req)}
+                    className="px-4 py-3 bg-slate-50 border border-slate-200 text-slate-700 hover:bg-slate-100 font-bold rounded-xl text-xs transition-colors active:scale-[0.98]"
+                  >
+                    Details
+                  </button>
+                  <button 
                     onClick={() => handleRejectRequest(req.id)}
-                    className="px-5 py-3 bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 font-bold rounded-xl text-xs transition-colors active:scale-[0.98]"
+                    className="px-4 py-3 bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 font-bold rounded-xl text-xs transition-colors active:scale-[0.98]"
                   >
                     Reject
                   </button>
@@ -625,7 +863,7 @@ export default function WorkerDashboardClient({
                   {/* Actions */}
                   <div className="flex gap-3 mt-4">
                     <button 
-                      onClick={() => handleCompleteJob(bookingId)}
+                      onClick={() => setCompletionUploadBookingId(bookingId)}
                       disabled={loadingAction[bookingId]}
                       className="flex-1 py-3 bg-[#00A87A] hover:bg-[#008F68] text-white font-extrabold rounded-xl text-xs transition-colors flex items-center justify-center gap-1.5 active:scale-[0.98] shadow-sm shadow-[#00A87A]/10"
                     >
@@ -803,8 +1041,16 @@ export default function WorkerDashboardClient({
                   <div>
                     <label className="text-[10px] text-slate-400 font-bold uppercase tracking-wide block">Service Requirements</label>
                     <p className="text-xs text-slate-800 leading-relaxed font-semibold mt-1 bg-slate-50/50 p-3 rounded-xl border border-slate-100">
-                      {selectedBooking.jobDetails}
+                      {selectedBooking.serviceRequest?.description || selectedBooking.jobDetails}
                     </p>
+                    {selectedBooking.serviceRequest?.media && selectedBooking.serviceRequest.media.length > 0 && (
+                      <div className="mt-3 animate-in fade-in duration-200">
+                        <MediaGallery 
+                          media={selectedBooking.serviceRequest.media} 
+                          category={selectedBooking.serviceRequest.category} 
+                        />
+                      </div>
+                    )}
                   </div>
 
                   <div className="grid grid-cols-2 gap-4">
@@ -831,6 +1077,22 @@ export default function WorkerDashboardClient({
                       {selectedBooking.status}
                     </span>
                   </div>
+
+                  {selectedBooking.completionImage && (
+                    <div className="pt-2">
+                      <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wide block mb-2">Job Completion Evidence</span>
+                      <div 
+                        onClick={() => setActiveLightboxImage(selectedBooking.completionImage!)}
+                        className="w-full h-48 rounded-2xl overflow-hidden border border-slate-200 cursor-pointer hover:opacity-90 active:scale-[0.99] transition-all bg-white flex items-center justify-center shadow-sm"
+                      >
+                        <img 
+                          src={selectedBooking.completionImage} 
+                          alt="Job completion photo" 
+                          className="w-full h-full object-contain"
+                        />
+                      </div>
+                    </div>
+                  )}
                 </div>
                 
               </div>
@@ -845,7 +1107,7 @@ export default function WorkerDashboardClient({
                 </button>
                 {selectedBooking.status === "IN_PROGRESS" && (
                   <button
-                    onClick={() => handleCompleteJob(selectedBooking.id)}
+                    onClick={() => setCompletionUploadBookingId(selectedBooking.id)}
                     className="flex-1 py-3 bg-[#00A87A] hover:bg-[#008F68] text-white font-bold rounded-xl text-sm transition-colors active:scale-[0.98] flex items-center justify-center gap-1.5"
                   >
                     <CheckCircle2 size={15} />
@@ -907,6 +1169,11 @@ export default function WorkerDashboardClient({
                     <p className="text-xs text-slate-600 leading-relaxed font-semibold mt-1 bg-slate-50/50 p-3 rounded-xl border border-slate-100">
                       {selectedRequest.description}
                     </p>
+                    {selectedRequest.media && selectedRequest.media.length > 0 && (
+                      <div className="mt-3 animate-in fade-in duration-200">
+                        <MediaGallery media={selectedRequest.media} category={selectedRequest.category} />
+                      </div>
+                    )}
                   </div>
 
                   <div className="grid grid-cols-2 gap-4">
@@ -946,6 +1213,183 @@ export default function WorkerDashboardClient({
                 </button>
               </div>
 
+            </div>
+          </div>
+        </Portal>
+      )}
+
+      {/* 7. Upload Completion Photo Modal */}
+      {completionUploadBookingId && (
+        <Portal>
+          <div className="fixed inset-0 z-[110] flex items-end justify-center bg-black/40 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+            <div className="bg-white w-full max-w-md rounded-3xl overflow-hidden shadow-2xl animate-in slide-in-from-bottom-8 duration-300 max-h-[90vh] flex flex-col">
+              
+              {/* Modal Header */}
+              <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-white">
+                <h3 className="font-extrabold text-[#1A2340] text-[16px]">Upload Job Completion Photo</h3>
+                <button 
+                  onClick={() => {
+                    setCompletionUploadBookingId(null);
+                    setCompletionPhotoFile(null);
+                    setCompletionPhotoBase64(null);
+                    setCompletionUploadError(null);
+                  }}
+                  className="p-1.5 bg-slate-50 hover:bg-slate-100 rounded-full text-slate-400 hover:text-slate-600 border border-slate-200/60 shadow-sm transition-colors"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+
+              {/* Modal Body */}
+              <div className="p-5 overflow-y-auto space-y-4 text-center">
+                <p className="text-xs text-slate-500 font-medium leading-relaxed max-w-[320px] mx-auto">
+                  Please take or upload a photo of the finished service. This will be visible to the customer and admin for verification.
+                </p>
+
+                {completionPhotoBase64 ? (
+                  <div className="space-y-3">
+                    <div className="relative w-full max-h-56 h-56 rounded-2xl overflow-hidden border border-slate-200 shadow-sm bg-slate-50 flex items-center justify-center">
+                      <img 
+                        src={completionPhotoBase64} 
+                        alt="Completion preview" 
+                        className="w-full h-full object-contain"
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setCompletionPhotoFile(null);
+                        setCompletionPhotoBase64(null);
+                      }}
+                      className="px-4 py-2 text-red-500 hover:text-red-600 bg-red-50 hover:bg-red-100 rounded-xl text-xs font-bold transition-colors border-none cursor-pointer inline-flex items-center gap-1.5"
+                    >
+                      <Trash2 size={13} />
+                      Remove & Choose Another
+                    </button>
+                  </div>
+                ) : (
+                  <div>
+                    <label className="flex flex-col items-center justify-center w-full h-48 border border-dashed border-slate-300 hover:border-[#E8514A] rounded-2xl bg-slate-50 hover:bg-slate-100/50 transition-all cursor-pointer">
+                      <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                        <div className="w-12 h-12 rounded-full bg-[#E8514A]/10 flex items-center justify-center text-[#E8514A] mb-3">
+                          <Camera size={22} className="stroke-[2]" />
+                        </div>
+                        <p className="text-xs font-extrabold text-slate-700">Take Photo / Upload Image</p>
+                        <p className="text-[10px] text-slate-400 mt-1 font-bold">PNG, JPG or JPEG up to 5MB</p>
+                      </div>
+                      <input 
+                        type="file" 
+                        accept="image/*" 
+                        capture="environment"
+                        className="hidden" 
+                        onChange={(e) => {
+                          if (e.target.files && e.target.files[0]) {
+                            const file = e.target.files[0];
+                            setCompletionPhotoFile(file);
+                            
+                            // Convert to base64
+                            const reader = new FileReader();
+                            reader.onloadend = () => {
+                              setCompletionPhotoBase64(reader.result as string);
+                            };
+                            reader.readAsDataURL(file);
+                          }
+                        }}
+                      />
+                    </label>
+                  </div>
+                )}
+              </div>
+
+              {/* Error message */}
+              {completionUploadError && (
+                <div className="px-4 pb-2">
+                  <p className="text-xs text-red-500 font-semibold text-center bg-red-50 rounded-xl py-2 px-3">{completionUploadError}</p>
+                </div>
+              )}
+
+              {/* Modal Footer */}
+              <div className="p-4 border-t border-slate-100 bg-white flex gap-3">
+                <button
+                  onClick={() => {
+                    setCompletionUploadBookingId(null);
+                    setCompletionPhotoFile(null);
+                    setCompletionPhotoBase64(null);
+                    setCompletionUploadError(null);
+                  }}
+                  className="flex-1 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-sm transition-colors active:scale-[0.98]"
+                >
+                  Cancel
+                </button>
+                <button
+                  disabled={!completionPhotoFile || completionUploading || loadingAction[completionUploadBookingId ?? ""]}
+                  onClick={async () => {
+                    if (!completionUploadBookingId || !completionPhotoFile) return;
+                    setCompletionUploadError(null);
+                    setCompletionUploading(true);
+                    try {
+                      // Upload file directly to Supabase Storage (avoids Next.js 1MB server action body limit)
+                      const supabase = createClient();
+                      const ext = completionPhotoFile.name.split(".").pop() || "jpg";
+                      const fileName = `${completionUploadBookingId}-${Date.now()}.${ext}`;
+                      const { data: uploadData, error: uploadError } = await supabase.storage
+                        .from("completion-photos")
+                        .upload(fileName, completionPhotoFile, { upsert: true, contentType: completionPhotoFile.type });
+                      if (uploadError) throw new Error(uploadError.message);
+                      const { data: urlData } = supabase.storage
+                        .from("completion-photos")
+                        .getPublicUrl(uploadData.path);
+                      const publicUrl = urlData.publicUrl;
+                      await handleCompleteJob(completionUploadBookingId, publicUrl);
+                      setCompletionUploadBookingId(null);
+                      setCompletionPhotoFile(null);
+                      setCompletionPhotoBase64(null);
+                    } catch (err: any) {
+                      setCompletionUploadError(err.message || "Upload failed. Please try again.");
+                    } finally {
+                      setCompletionUploading(false);
+                    }
+                  }}
+                  className="flex-1 py-3 bg-[#00A87A] hover:bg-[#008F68] disabled:bg-slate-200 disabled:text-slate-400 text-white font-extrabold rounded-xl text-sm transition-colors active:scale-[0.98] shadow-sm shadow-[#00A87A]/10 flex items-center justify-center gap-1.5"
+                >
+                  {completionUploading ? "Uploading..." : loadingAction[completionUploadBookingId ?? ""] ? "Submitting..." : "Submit Completion"}
+                </button>
+              </div>
+
+            </div>
+          </div>
+        </Portal>
+      )}
+
+      {/* Lightbox / Modal for full screen image */}
+      {activeLightboxImage && (
+        <Portal>
+          <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-in fade-in duration-200" onClick={() => setActiveLightboxImage(null)}>
+            <div className="relative max-w-lg w-full max-h-[80vh] flex flex-col justify-center items-center" onClick={(e) => e.stopPropagation()}>
+              {lightboxError ? (
+                <div className="bg-slate-900 border border-slate-800 rounded-3xl p-8 flex flex-col items-center justify-center text-slate-400 max-w-sm text-center">
+                  <svg className="w-12 h-12 text-slate-600 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  </svg>
+                  <p className="text-sm font-bold text-slate-200">Image failed to load</p>
+                  <p className="text-xs text-slate-500 mt-1">The requested media could not be fetched from storage.</p>
+                </div>
+              ) : (
+                <img
+                  src={activeLightboxImage}
+                  alt="Enlarged evidence"
+                  onError={() => {
+                    setLightboxError(true);
+                  }}
+                  className="max-w-full max-h-[75vh] object-contain rounded-2xl shadow-2xl"
+                />
+              )}
+              <button 
+                onClick={() => setActiveLightboxImage(null)}
+                className="absolute -top-12 right-0 p-2 bg-white/10 hover:bg-white/20 text-white rounded-full border border-white/20 shadow-sm flex items-center justify-center cursor-pointer transition-colors"
+              >
+                <X size={20} />
+              </button>
             </div>
           </div>
         </Portal>

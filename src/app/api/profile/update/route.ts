@@ -23,7 +23,8 @@ export async function POST(request: Request) {
 
       locationAddress, hourlyRate, skills, profession, customProfession,
       workingHours, availabilityStatus, languages, portfolio,
-      serviceAvailability, serviceAreas, paymentPreference
+      serviceAvailability, serviceAreas, paymentPreference,
+      isOnline, experience
     } = body;
 
     // Build update data dynamically for User
@@ -68,6 +69,22 @@ export async function POST(request: Request) {
       }
     });
 
+    // Sync updated metadata back to Supabase Auth metadata
+    if (name !== undefined || phone !== undefined || image !== undefined) {
+      const authMetaData: any = {};
+      if (name !== undefined) authMetaData.full_name = name;
+      if (phone !== undefined) authMetaData.phone = phone || null;
+      if (image !== undefined) authMetaData.avatar_url = image || null;
+      
+      try {
+        await supabase.auth.updateUser({
+          data: authMetaData
+        });
+      } catch (authErr) {
+        console.warn('Failed to sync metadata to Supabase Auth:', authErr);
+      }
+    }
+
     // If user is a worker, update worker profile details
     if (updatedUser.workerProfile) {
       const updateData: any = {};
@@ -75,6 +92,8 @@ export async function POST(request: Request) {
       if (hourlyRate !== undefined) updateData.hourlyRate = hourlyRate ? parseFloat(hourlyRate) : null;
       if (workingHours !== undefined) updateData.workingHours = workingHours || null;
       if (availabilityStatus !== undefined) updateData.availabilityStatus = availabilityStatus || "AVAILABLE";
+      if (experience !== undefined) updateData.experience = parseInt(experience) || 0;
+      if (isOnline !== undefined) updateData.isOnline = !!isOnline;
       
       // New worker settings
       if (serviceAvailability !== undefined) updateData.serviceAvailability = !!serviceAvailability;
