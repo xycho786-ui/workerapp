@@ -1,5 +1,6 @@
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
+  previewFeatures = ["driverAdapters"]
 }
 
 datasource db {
@@ -7,121 +8,113 @@ datasource db {
 }
 
 model User {
-  id        String    @id @default(uuid())
-  email     String    @unique
-  phone     String?   @unique
-  name      String
-  dob       DateTime?
-  address   String?
-  role      Role      @default(CUSTOMER)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id                       String           @id @default(uuid())
+  email                    String
+  phone                    String?
+  name                     String
+  role                     Role             @default(CUSTOMER)
+  createdAt                DateTime         @default(now())
+  updatedAt                DateTime         @updatedAt
+  address                  String?
+  dob                      DateTime?
+  bookingNotifications     Boolean          @default(true)
+  image                    String?
+  marketingNotifications   Boolean          @default(true)
+  messageNotifications     Boolean          @default(true)
+  otpNotifications         Boolean          @default(true)
+  favoriteServices         String[]         @default([])
+  fontSize                 String           @default("medium")
+  highContrast             Boolean          @default(false)
+  language                 String           @default("en")
+  locationSharing          Boolean          @default(true)
+  preferredCategories      String[]         @default([])
+  profileVisible           Boolean          @default(true)
+  promotionalNotifications Boolean          @default(true)
+  reducedAnimations        Boolean          @default(false)
+  reviewNotifications      Boolean          @default(true)
+  showOnlineStatus         Boolean          @default(true)
+  systemNotifications      Boolean          @default(true)
+  theme                    String           @default("light")
+  walletBalance            Float            @default(5000.0)
+  fcmToken                 String?
+  bookings                 Booking[]        @relation("CustomerBookings")
+  cartItems                CartItem[]       @relation("UserCart")
+  conversationsAsUser      Conversation[]   @relation("ConversationUser")
+  messagesSent             Message[]        @relation("MessagesSent")
+  notifications            Notification[]   @relation("UserNotifications")
+  orders                   Order[]          @relation("UserOrders")
+  payments                 Payment[]        @relation("CustomerPayments")
+  reviewsGiven             Review[]         @relation("ReviewsGiven")
+  savedWorkers             SavedWorker[]    @relation("CustomerSavedWorkers")
+  serviceRequests          ServiceRequest[] @relation("CustomerRequests")
+  transactions             Transaction[]    @relation("UserTransactions")
+  wishlistItems            WishlistItem[]   @relation("UserWishlist")
+  workerProfile            WorkerProfile?
 
-  // Relationships
-  workerProfile WorkerProfile?
-  bookings      Booking[]      @relation("CustomerBookings")
-  reviewsGiven  Review[]       @relation("ReviewsGiven")
-  payments      Payment[]      @relation("CustomerPayments")
-  
-  // New Relationships
-  messagesSent      Message[]      @relation("MessagesSent")
-  conversationsAsUser Conversation[] @relation("ConversationUser")
-  notifications     Notification[] @relation("UserNotifications")
-  serviceRequests   ServiceRequest[] @relation("CustomerRequests")
-
-  // Profile enhancements
-  image                  String?
-  bookingNotifications   Boolean        @default(true)
-  messageNotifications   Boolean        @default(true)
-  otpNotifications       Boolean        @default(true)
-  marketingNotifications Boolean        @default(true)
-  savedWorkers           SavedWorker[]  @relation("CustomerSavedWorkers")
-
-  // Multi-Language and Settings
-  language               String         @default("en")
-  theme                  String         @default("light")
-  profileVisible         Boolean        @default(true)
-  locationSharing        Boolean        @default(true)
-  showOnlineStatus       Boolean        @default(true)
-  fontSize               String         @default("medium")
-  reducedAnimations      Boolean        @default(false)
-  highContrast           Boolean        @default(false)
-  reviewNotifications    Boolean        @default(true)
-  promotionalNotifications Boolean      @default(true)
-  systemNotifications    Boolean        @default(true)
-  preferredCategories    String[]       @default([])
-  favoriteServices       String[]       @default([])
+  @@unique([email, role])
+  @@index([role])
 }
 
 model WorkerProfile {
-  id           String   @id @default(uuid())
-  userId       String   @unique
-  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
-  skills       String[] // e.g., ["Electrician", "Plumber"]
-  experience   Int      // years of experience
-  locationLat  Float?
-  locationLng  Float?
-  locationAddress String?
-  locationId   String?  @unique
-  location     Location? @relation(fields: [locationId], references: [id])
-  isOnline     Boolean  @default(false)
-  hourlyRate   Float?
-  rating       Float    @default(0.0)
-  totalReviews Int      @default(0)
-  
-  // Profession Selection
-  userType         String?  @default("worker")
-  profession       String[]
-  customProfession String?
-  
-  // Jobs/Bookings handled
-  jobs         Booking[] @relation("WorkerBookings")
-  reviews      Review[]  @relation("WorkerReviews")
-  payments     Payment[] @relation("WorkerPayments")
-  
-  // New Relationships
-  categoryId   String?
-  category     Category? @relation(fields: [categoryId], references: [id])
+  id                    String         @id @default(uuid())
+  userId                String         @unique
+  skills                String[]
+  experience            Int
+  isOnline              Boolean        @default(false)
+  hourlyRate            Float?
+  rating                Float          @default(0.0)
+  totalReviews          Int            @default(0)
+  createdAt             DateTime       @default(now())
+  updatedAt             DateTime       @updatedAt
+  categoryId            String?
+  locationAddress       String?
+  locationLat           Float?
+  locationLng           Float?
+  locationId            String?        @unique
+  customProfession      String?
+  userType              String?        @default("worker")
+  profession            String[]
+  availabilityStatus    String?        @default("AVAILABLE")
+  languages             String[]       @default([])
+  portfolio             String[]       @default([])
+  workingHours          String?        @default("9:00 AM - 5:00 PM")
+  paymentPreference     String         @default("BANK_TRANSFER")
+  serviceAreas          String[]       @default([])
+  serviceAvailability   Boolean        @default(true)
+  jobs                  Booking[]      @relation("WorkerBookings")
   conversationsAsWorker Conversation[] @relation("ConversationWorker")
+  payments              Payment[]      @relation("WorkerPayments")
+  reviews               Review[]       @relation("WorkerReviews")
+  savedBy               SavedWorker[]  @relation("WorkerSavedBy")
+  category              Category?      @relation(fields: [categoryId], references: [id])
+  location              Location?      @relation(fields: [locationId], references: [id])
+  user                  User           @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  // Profile enhancements
-  portfolio          String[]       @default([])
-  languages          String[]       @default([])
-  workingHours       String?        @default("9:00 AM - 5:00 PM")
-  availabilityStatus String?        @default("AVAILABLE")
-  savedBy            SavedWorker[]  @relation("WorkerSavedBy")
-
-  // Worker Settings
-  serviceAvailability    Boolean        @default(true)
-  serviceAreas           String[]       @default([])
-  paymentPreference      String         @default("BANK_TRANSFER")
-  
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  @@index([categoryId])
+  @@index([isOnline])
 }
 
 model SavedWorker {
-  id         String   @id @default(uuid())
+  id         String        @id @default(uuid())
   customerId String
-  customer   User     @relation("CustomerSavedWorkers", fields: [customerId], references: [id], onDelete: Cascade)
   workerId   String
+  createdAt  DateTime      @default(now())
+  customer   User          @relation("CustomerSavedWorkers", fields: [customerId], references: [id], onDelete: Cascade)
   worker     WorkerProfile @relation("WorkerSavedBy", fields: [workerId], references: [id], onDelete: Cascade)
-  createdAt  DateTime @default(now())
 
   @@unique([customerId, workerId])
 }
 
 model Category {
-  id          String   @id @default(uuid())
-  name        String   @unique
-  icon        String   // Emoji or icon string
+  id          String          @id @default(uuid())
+  name        String          @unique
+  icon        String
   description String?
   workers     WorkerProfile[]
 }
 
 model Location {
-  id      String @id @default(uuid())
+  id      String         @id @default(uuid())
   lat     Float
   lng     Float
   address String?
@@ -129,85 +122,217 @@ model Location {
 }
 
 model Booking {
-  id          String   @id @default(uuid())
-  
-  customerId  String
-  customer    User     @relation("CustomerBookings", fields: [customerId], references: [id])
-  
-  workerId    String
-  worker      WorkerProfile @relation("WorkerBookings", fields: [workerId], references: [id])
-  
-  status      BookingStatus @default(PENDING)
-  jobDetails  String
-  price       Float?
-  
-  payment     Payment?
-  
-  scheduledAt DateTime?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  completionImage String?
+  id                  String        @id @default(uuid())
+  customerId          String
+  workerId            String
+  status              BookingStatus @default(PENDING)
+  jobDetails          String
+  price               Float?
+  scheduledAt         DateTime?
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
+  completionImage     String?
+  category            String        @default("General")
+  voiceUrl            String?
+  priority            String        @default("NORMAL")
+  chatEnabled         Boolean       @default(false)
+  contactShared       Boolean       @default(false)
+  workerAcceptedAt    DateTime?
+  customerConfirmedAt DateTime?
+  customer            User          @relation("CustomerBookings", fields: [customerId], references: [id])
+  worker              WorkerProfile @relation("WorkerBookings", fields: [workerId], references: [id])
+  payment             Payment?
+
+  @@index([customerId])
+  @@index([workerId])
+  @@index([status])
 }
 
 model Review {
-  id          String   @id @default(uuid())
-  
-  rating      Int      // 1 to 5
-  comment     String?
-  
-  reviewerId  String
-  reviewer    User     @relation("ReviewsGiven", fields: [reviewerId], references: [id])
-  
-  workerId    String
-  worker      WorkerProfile @relation("WorkerReviews", fields: [workerId], references: [id])
-  
-  createdAt   DateTime @default(now())
+  id         String        @id @default(uuid())
+  rating     Int
+  comment    String?
+  reviewerId String
+  workerId   String
+  createdAt  DateTime      @default(now())
+  reviewer   User          @relation("ReviewsGiven", fields: [reviewerId], references: [id])
+  worker     WorkerProfile @relation("WorkerReviews", fields: [workerId], references: [id])
 }
 
 model Conversation {
-  id          String   @id @default(uuid())
-  
-  customerId  String
-  customer    User     @relation("ConversationUser", fields: [customerId], references: [id])
-  
-  workerId    String
-  worker      WorkerProfile @relation("ConversationWorker", fields: [workerId], references: [id])
-  
-  messages    Message[]
-  updatedAt   DateTime @updatedAt
-  createdAt   DateTime @default(now())
+  id         String        @id @default(uuid())
+  customerId String
+  workerId   String
+  updatedAt  DateTime      @updatedAt
+  createdAt  DateTime      @default(now())
+  customer   User          @relation("ConversationUser", fields: [customerId], references: [id])
+  worker     WorkerProfile @relation("ConversationWorker", fields: [workerId], references: [id])
+  messages   Message[]
 
   @@unique([customerId, workerId])
 }
 
 model Message {
-  id              String   @id @default(uuid())
-  
-  conversationId  String
-  conversation    Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
-  
-  senderId        String
-  sender          User     @relation("MessagesSent", fields: [senderId], references: [id])
-  
-  content         String
-  isRead          Boolean  @default(false)
-  createdAt       DateTime @default(now())
+  id             String       @id @default(uuid())
+  conversationId String
+  senderId       String
+  content        String
+  isRead         Boolean      @default(false)
+  createdAt      DateTime     @default(now())
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender         User         @relation("MessagesSent", fields: [senderId], references: [id])
+
+  @@index([conversationId])
+  @@index([senderId])
+  @@index([isRead])
 }
 
 model Notification {
+  id        String           @id @default(uuid())
+  userId    String
+  title     String
+  message   String
+  type      NotificationType @default(INFO)
+  isRead    Boolean          @default(false)
+  createdAt DateTime         @default(now())
+  category  String           @default("SYSTEM")
+  relatedId String?
+  user      User             @relation("UserNotifications", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([isRead])
+}
+
+model ServiceRequest {
+  id                String        @id @default(uuid())
+  customerId        String
+  category          String
+  description       String
+  budget            Float?
+  status            RequestStatus @default(OPEN)
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+  assignedWorkerId  String?
+  latitude          Float?
+  longitude         Float?
+  rejectedWorkerIds String[]      @default([])
+  media             Media[]
+  customer          User          @relation("CustomerRequests", fields: [customerId], references: [id])
+}
+
+model Media {
+  id               String         @id @default(uuid())
+  url              String
+  type             MediaType
+  serviceRequestId String
+  createdAt        DateTime       @default(now())
+  serviceRequest   ServiceRequest @relation(fields: [serviceRequestId], references: [id], onDelete: Cascade)
+}
+
+model Payment {
+  id            String         @id @default(uuid())
+  amount        Float
+  platformFee   Float          @default(25.0)
+  tax           Float          @default(0.0)
+  totalAmount   Float
+  status        PaymentStatus  @default(PENDING)
+  method        PaymentMethod?
+  transactionId String?
+  bookingId     String         @unique
+  customerId    String
+  workerId      String
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  invoice       Invoice?
+  booking       Booking        @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  customer      User           @relation("CustomerPayments", fields: [customerId], references: [id])
+  worker        WorkerProfile  @relation("WorkerPayments", fields: [workerId], references: [id])
+}
+
+model Invoice {
+  id            String      @id @default(uuid())
+  invoiceNumber String      @unique
+  date          DateTime    @default(now())
+  totalAmount   Float
+  paymentId     String      @unique
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  emailAttempts Int         @default(0)
+  emailSentAt   DateTime?
+  emailStatus   EmailStatus @default(PENDING)
+  htmlContent   String?
+  payment       Payment     @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+}
+
+model Product {
+  id             String         @id @default(uuid())
+  name           String
+  description    String?
+  price          Float
+  image          String?
+  rating         Float          @default(4.5)
+  stock          Int            @default(10)
+  category       String
+  sellerName     String         @default("Natural Care")
+  sellerLocation String         @default("Chennai, India")
+  createdAt      DateTime       @default(now())
+  cartItems      CartItem[]
+  orderItems     OrderItem[]
+  wishlistItems  WishlistItem[]
+}
+
+model Order {
+  id          String      @id @default(uuid())
+  customerId  String
+  totalAmount Float
+  status      String      @default("PROCESSING")
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  customer    User        @relation("UserOrders", fields: [customerId], references: [id])
+  items       OrderItem[]
+}
+
+model OrderItem {
+  id        String  @id @default(uuid())
+  orderId   String
+  productId String
+  quantity  Int
+  price     Float
+  order     Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product   Product @relation(fields: [productId], references: [id])
+}
+
+model WishlistItem {
+  id         String   @id @default(uuid())
+  customerId String
+  productId  String
+  createdAt  DateTime @default(now())
+  customer   User     @relation("UserWishlist", fields: [customerId], references: [id], onDelete: Cascade)
+  product    Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([customerId, productId])
+}
+
+model CartItem {
+  id         String   @id @default(uuid())
+  customerId String
+  productId  String
+  quantity   Int      @default(1)
+  createdAt  DateTime @default(now())
+  customer   User     @relation("UserCart", fields: [customerId], references: [id], onDelete: Cascade)
+  product    Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([customerId, productId])
+}
+
+model Transaction {
   id          String   @id @default(uuid())
-  
   userId      String
-  user        User     @relation("UserNotifications", fields: [userId], references: [id], onDelete: Cascade)
-  
-  title       String
-  message     String
-  type        NotificationType @default(INFO)
-  category    String           @default("SYSTEM")
-  relatedId   String?
-  isRead      Boolean          @default(false)
-  
+  amount      Float
+  type        String
+  description String
   createdAt   DateTime @default(now())
+  user        User     @relation("UserTransactions", fields: [userId], references: [id], onDelete: Cascade)
 }
 
 enum NotificationType {
@@ -229,39 +354,9 @@ enum BookingStatus {
   REJECTED
   IN_PROGRESS
   COMPLETED
+  CANCELLED
   AWAITING_PAYMENT
   PAYMENT_COMPLETED
-  CANCELLED
-}
-
-model ServiceRequest {
-  id          String   @id @default(uuid())
-  customerId  String
-  customer    User     @relation("CustomerRequests", fields: [customerId], references: [id])
-  
-  category    String
-  description String
-  budget      Float?
-  
-  status      RequestStatus @default(OPEN)
-  media       Media[]
-  
-  latitude          Float?
-  longitude         Float?
-  assignedWorkerId  String?
-  rejectedWorkerIds String[] @default([])
-  
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-}
-
-model Media {
-  id               String   @id @default(uuid())
-  url              String
-  type             MediaType // IMAGE, VIDEO, AUDIO
-  serviceRequestId String
-  serviceRequest   ServiceRequest @relation(fields: [serviceRequestId], references: [id], onDelete: Cascade)
-  createdAt        DateTime @default(now())
 }
 
 enum RequestStatus {
@@ -274,53 +369,6 @@ enum MediaType {
   IMAGE
   VIDEO
   AUDIO
-}
-
-model Payment {
-  id            String         @id @default(uuid())
-  amount        Float
-  platformFee   Float          @default(25.0)
-  tax           Float          @default(0.0)
-  totalAmount   Float
-  
-  status        PaymentStatus  @default(PENDING)
-  method        PaymentMethod?
-  transactionId String?
-  
-  bookingId     String         @unique
-  booking       Booking        @relation(fields: [bookingId], references: [id], onDelete: Cascade)
-  
-  customerId    String
-  customer      User           @relation("CustomerPayments", fields: [customerId], references: [id])
-  
-  workerId      String
-  worker        WorkerProfile  @relation("WorkerPayments", fields: [workerId], references: [id])
-  
-  invoice       Invoice?
-  
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
-}
-
-model Invoice {
-  id            String        @id @default(uuid())
-  invoiceNumber String        @unique
-  date          DateTime      @default(now())
-  totalAmount   Float
-
-  // Persistent HTML for retrieval (immutable after generation)
-  htmlContent   String?       @db.Text
-
-  // Email delivery tracking
-  emailStatus   EmailStatus   @default(PENDING)
-  emailSentAt   DateTime?
-  emailAttempts Int           @default(0)
-
-  paymentId     String        @unique
-  payment       Payment       @relation(fields: [paymentId], references: [id], onDelete: Cascade)
-
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
 }
 
 enum PaymentStatus {

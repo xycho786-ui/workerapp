@@ -123,6 +123,23 @@ export default function ActiveChatRoom({
     setInputText("");
     setIsSending(true);
 
+    const tempId = `temp-${Date.now()}`;
+    const optimisticMessage: Message = {
+      id: tempId,
+      senderId: currentUserId,
+      createdAt: new Date().toISOString(),
+      isRead: false,
+      type: "text",
+      text: textToSend,
+      voiceUrl: null,
+      duration: 0,
+      lat: 0,
+      lng: 0,
+      address: "",
+    };
+
+    setMessages(prev => [...prev, optimisticMessage]);
+
     try {
       const res = await fetch("/api/chat/messages", {
         method: "POST",
@@ -137,9 +154,10 @@ export default function ActiveChatRoom({
       if (!res.ok) throw new Error("Failed to send");
       const data = await res.json();
       
-      setMessages(prev => [...prev, data.message]);
+      setMessages(prev => prev.map(m => m.id === tempId ? data.message : m));
     } catch (err) {
       console.error(err);
+      setMessages(prev => prev.filter(m => m.id !== tempId));
       alert("Failed to send message.");
     } finally {
       setIsSending(false);
@@ -256,6 +274,23 @@ export default function ActiveChatRoom({
     discardPendingVoice(); // clear state
     setIsSending(true);
 
+    const tempId = `temp-${Date.now()}`;
+    const optimisticMessage: Message = {
+      id: tempId,
+      senderId: currentUserId,
+      createdAt: new Date().toISOString(),
+      isRead: false,
+      type: "voice",
+      text: "",
+      voiceUrl: voiceToSend.voiceUrl,
+      duration: voiceToSend.duration,
+      lat: 0,
+      lng: 0,
+      address: "",
+    };
+
+    setMessages(prev => [...prev, optimisticMessage]);
+
     try {
       const res = await fetch("/api/chat/messages", {
         method: "POST",
@@ -270,9 +305,10 @@ export default function ActiveChatRoom({
       
       if (!res.ok) throw new Error("Failed to send voice");
       const data = await res.json();
-      setMessages(prev => [...prev, data.message]);
+      setMessages(prev => prev.map(m => m.id === tempId ? data.message : m));
     } catch (err) {
       console.error(err);
+      setMessages(prev => prev.filter(m => m.id !== tempId));
       alert("Failed to send voice note.");
     } finally {
       setIsSending(false);
@@ -318,6 +354,23 @@ export default function ActiveChatRoom({
     discardPendingLocation(); // clear state
     setIsSending(true);
 
+    const tempId = `temp-${Date.now()}`;
+    const optimisticMessage: Message = {
+      id: tempId,
+      senderId: currentUserId,
+      createdAt: new Date().toISOString(),
+      isRead: false,
+      type: "location",
+      text: "",
+      voiceUrl: null,
+      duration: 0,
+      lat: locToSend.lat,
+      lng: locToSend.lng,
+      address: locToSend.address,
+    };
+
+    setMessages(prev => [...prev, optimisticMessage]);
+
     try {
       const res = await fetch("/api/chat/messages", {
         method: "POST",
@@ -333,9 +386,10 @@ export default function ActiveChatRoom({
 
       if (!res.ok) throw new Error("Failed to send location");
       const data = await res.json();
-      setMessages(prev => [...prev, data.message]);
+      setMessages(prev => prev.map(m => m.id === tempId ? data.message : m));
     } catch (err) {
       console.error(err);
+      setMessages(prev => prev.filter(m => m.id !== tempId));
       alert("Failed to share location.");
     } finally {
       setIsSending(false);
@@ -417,8 +471,19 @@ export default function ActiveChatRoom({
 
       {/* Messages area */}
       <div className="flex-1 overflow-y-auto p-4 space-y-3.5 flex flex-col">
-        {messages.map((m) => {
-          const isMe = m.senderId === currentUserId;
+        {bookingStatus === "PENDING" ? (
+          <div className="flex-1 flex flex-col justify-center items-center text-center p-6 space-y-3 max-w-[280px] mx-auto">
+            <div className="w-16 h-16 bg-slate-50 border border-slate-100 rounded-full flex items-center justify-center text-slate-400">
+              <Lock size={28} />
+            </div>
+            <h4 className="text-sm font-extrabold text-[#1A2340]">Chat is Locked</h4>
+            <p className="text-xs text-slate-400 font-medium leading-relaxed">
+              Messaging will become available after the booking has been accepted by both the customer and the worker.
+            </p>
+          </div>
+        ) : (
+          messages.map((m) => {
+            const isMe = m.senderId === currentUserId;
           const timeStr = new Date(m.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
           const isPlaying = playingAudioId === m.id;
 
@@ -498,13 +563,20 @@ export default function ActiveChatRoom({
               </div>
             </div>
           );
-        })}
-        <div ref={messagesEndRef} />
+        }))}
+        {bookingStatus !== "PENDING" && <div ref={messagesEndRef} />}
       </div>
 
       {/* Input area */}
       <div className="p-3.5 bg-white border-t border-slate-100 z-20">
-        {isCompleted ? (
+        {bookingStatus === "PENDING" ? (
+          <div className="bg-slate-50 border border-slate-100 text-[#888BA0] rounded-2xl p-4 text-center flex items-center justify-center gap-2 shadow-inner">
+            <Lock size={15} className="text-slate-400 flex-shrink-0" />
+            <span className="text-[11px] font-bold leading-normal">
+              Messaging will become available after the booking has been accepted by both the customer and the worker.
+            </span>
+          </div>
+        ) : isCompleted ? (
           <div className="bg-slate-50 border border-slate-100 text-[#888BA0] rounded-2xl p-4 text-center flex items-center justify-center gap-2 shadow-inner">
             <Lock size={15} className="text-slate-400 flex-shrink-0" />
             <span className="text-[11px] font-bold leading-normal">

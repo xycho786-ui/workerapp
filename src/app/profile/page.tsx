@@ -6,13 +6,7 @@ export default async function RootProfilePage() {
   const { data: { user } } = await supabase.auth.getUser();
 
   if (user) {
-    const rawRole = user.user_metadata?.role;
-    const role = rawRole ? String(rawRole).toUpperCase() : 'CUSTOMER';
-    if (role === 'WORKER') {
-      redirect("/worker/profile");
-    } else {
-      redirect("/customer/profile");
-    }
+    redirect("/customer/profile");
   }
 
   redirect("/");

@@ -23,7 +23,7 @@ export default function SettingsContent({ dbUser, handleLogoutAction }: Settings
   const { t, language, setLanguage } = useLanguage();
 
   const workerProfile = dbUser.workerProfile;
-  const isWorker = dbUser.role === "WORKER" || !!workerProfile;
+  const isWorker = false;
 
   // Language Drawer State
   const [isLanguageOpen, setIsLanguageOpen] = useState(false);
@@ -242,6 +242,30 @@ export default function SettingsContent({ dbUser, handleLogoutAction }: Settings
               </div>
               <ChevronRight size={16} className="text-slate-400" />
             </button>
+          </div>
+        </section>
+
+        {/* BILLING & INVOICES */}
+        <section className="space-y-2">
+          <h2 className="text-[11px] font-extrabold text-slate-400 uppercase tracking-widest px-1">
+            Billing & Invoices
+          </h2>
+          <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+            <Link 
+              href={dbUser.role === "ADMIN" ? "/admin/invoices" : isWorker ? "/worker/invoices" : "/customer/invoices"}
+              className="w-full flex items-center justify-between p-4 hover:bg-slate-50/50 transition-colors"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-650 flex items-center justify-center border border-emerald-100/50">
+                  <DollarSign size={18} />
+                </div>
+                <div className="text-left">
+                  <p className="text-xs font-bold text-slate-850">My Invoices</p>
+                  <p className="text-[10px] text-slate-400 font-semibold mt-0.5">View and download payment receipts</p>
+                </div>
+              </div>
+              <ChevronRight size={16} className="text-slate-400" />
+            </Link>
           </div>
         </section>
 

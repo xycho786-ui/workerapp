@@ -4,13 +4,14 @@ import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { 
   User, Settings, Briefcase, Heart, Star, Bell, HelpCircle, Info,
-  Camera, Check, Lock, ChevronRight, Phone, MapPin, Calendar, X, Loader2 
+  Camera, Check, Lock, ChevronRight, Phone, MapPin, Calendar, X, Loader2, RefreshCw, ArrowLeft
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useLanguage } from "@/context/LanguageContext";
 import Portal from "@/components/Portal";
 import { createClient } from "@/utils/supabase/client";
+import CustomerSidebarDrawer from "@/components/CustomerSidebarDrawer";
 
 interface CustomerProfileContentProps {
   dbUser: any;
@@ -212,6 +213,10 @@ export default function CustomerProfileContent({
     <div className="flex flex-col h-full bg-[#FCFDFD] font-sans pb-24">
       {/* Profile Header */}
       <div className="bg-gradient-to-b from-[#F08080]/15 to-transparent px-5 pt-8 pb-6 border-b border-gray-100/50">
+        <div className="flex items-center gap-3 mb-4">
+          <CustomerSidebarDrawer />
+          <span className="text-sm font-black text-slate-800">My Profile</span>
+        </div>
         <div className="flex items-center gap-5">
           <div className="relative group">
             <div className="w-20 h-20 rounded-2xl overflow-hidden bg-gradient-to-br from-primary-light to-primary flex items-center justify-center border-4 border-white shadow-xl shadow-primary/10 relative">
@@ -800,18 +805,28 @@ export default function CustomerProfileContent({
       {/* VERSION & SECURE LOG OUT */}
       <div className="flex justify-between items-center px-5 py-5 mt-auto border-t border-slate-100 bg-white">
         <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">VERSION 0.1.0</span>
-        <button 
-          type="button"
-          onClick={async () => {
-            if (confirm("Are you sure you want to log out?")) {
-              await handleLogoutAction();
-            }
-          }}
-          className="text-[12px] text-[#F08080] hover:text-[#F08080]/80 font-black cursor-pointer uppercase tracking-wider flex items-center gap-1 transition-colors"
-        >
-          <LogOut size={13} />
-          Log Out
-        </button>
+        <div className="flex items-center gap-3">
+          <Link
+            href="/"
+            className="text-[12px] text-primary hover:text-primary-light font-black cursor-pointer uppercase tracking-wider flex items-center gap-1 transition-colors"
+          >
+            <RefreshCw size={13} />
+            Switch Role
+          </Link>
+          <span className="text-slate-200 text-xs">|</span>
+          <button 
+            type="button"
+            onClick={async () => {
+              if (confirm("Are you sure you want to log out?")) {
+                await handleLogoutAction();
+              }
+            }}
+            className="text-[12px] text-[#F08080] hover:text-[#F08080]/80 font-black cursor-pointer uppercase tracking-wider flex items-center gap-1 transition-colors"
+          >
+            <LogOut size={13} />
+            Log Out
+          </button>
+        </div>
       </div>
 
       {/* EDIT PROFILE SLIDE-UP MODAL */}

@@ -1,4 +1,5 @@
 import nodemailer from "nodemailer";
+import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
 
 interface InvoiceData {
   id: string;
@@ -235,6 +236,49 @@ export async function sendInvoiceEmail(
       },
     });
 
+    // Generate PDF Invoice
+    const pdfDoc = await PDFDocument.create();
+    const page = pdfDoc.addPage([600, 800]);
+    const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+    const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+    
+    const { width, height } = page.getSize();
+    
+    page.drawText('SERVICEHUB INVOICE', { x: 50, y: height - 60, size: 24, font: boldFont, color: rgb(0.1, 0.1, 0.4) });
+    
+    page.drawText(`Invoice Number: ${invoice.invoiceNumber}`, { x: 50, y: height - 100, size: 12, font });
+    page.drawText(`Date: ${new Date().toLocaleDateString()}`, { x: 50, y: height - 120, size: 12, font });
+    page.drawText(`Payment ID: ${invoice.paymentId}`, { x: 50, y: height - 140, size: 12, font });
+    
+    page.drawText('Billed To:', { x: 50, y: height - 180, size: 14, font: boldFont });
+    page.drawText(`${booking.customer.name}`, { x: 50, y: height - 200, size: 12, font });
+    page.drawText(`${customerEmail}`, { x: 50, y: height - 220, size: 12, font });
+    
+    page.drawText('Service Provider:', { x: 350, y: height - 180, size: 14, font: boldFont });
+    page.drawText(`${booking.worker.user.name}`, { x: 350, y: height - 200, size: 12, font });
+    page.drawText(`${booking.worker.profession[0] ?? "Service Specialist"}`, { x: 350, y: height - 220, size: 12, font });
+    
+    page.drawLine({ start: { x: 50, y: height - 260 }, end: { x: 550, y: height - 260 }, thickness: 1, color: rgb(0.8, 0.8, 0.8) });
+    page.drawText('Description', { x: 50, y: height - 280, size: 12, font: boldFont });
+    page.drawText('Amount', { x: 450, y: height - 280, size: 12, font: boldFont });
+    page.drawLine({ start: { x: 50, y: height - 295 }, end: { x: 550, y: height - 295 }, thickness: 1, color: rgb(0.8, 0.8, 0.8) });
+    
+    page.drawText(booking.jobDetails.substring(0, 50), { x: 50, y: height - 320, size: 12, font });
+    const subtotal = booking.price ?? (invoice.totalAmount - 25);
+    page.drawText(`Rs. ${subtotal.toFixed(2)}`, { x: 450, y: height - 320, size: 12, font });
+    
+    page.drawText('Platform Fee', { x: 50, y: height - 350, size: 12, font });
+    page.drawText(`Rs. 25.00`, { x: 450, y: height - 350, size: 12, font });
+    
+    page.drawLine({ start: { x: 50, y: height - 410 }, end: { x: 550, y: height - 410 }, thickness: 2, color: rgb(0.1, 0.1, 0.4) });
+    page.drawText('Total Paid:', { x: 350, y: height - 435, size: 14, font: boldFont });
+    page.drawText(`Rs. ${invoice.totalAmount.toFixed(2)}`, { x: 450, y: height - 435, size: 14, font: boldFont, color: rgb(0.1, 0.6, 0.3) });
+    
+    page.drawText('Thank you for using ServiceHub!', { x: 200, y: 50, size: 12, font: boldFont, color: rgb(0.5, 0.5, 0.5) });
+
+    const pdfBytes = await pdfDoc.save();
+    const pdfBuffer = Buffer.from(pdfBytes);
+
     const info = await transporter.sendMail({
       from: '"ServiceHub Receipts" <receipts@servicehub.com>',
       to: customerEmail,
@@ -252,6 +296,13 @@ export async function sendInvoiceEmail(
         `— ServiceHub Team`,
       ].join("\n"),
       html: htmlContent,
+      attachments: [
+        {
+          filename: `Invoice-${invoice.invoiceNumber}.pdf`,
+          content: pdfBuffer,
+          contentType: 'application/pdf',
+        }
+      ]
     });
 
     const previewUrl = nodemailer.getTestMessageUrl(info) || undefined;

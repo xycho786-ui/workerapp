@@ -21,7 +21,7 @@ export const LANGUAGES: { code: Language; label: string }[] = [
 
 export const translations: Record<Language, Record<string, any>> = {
   en: {
-    nav: { home: "Home", jobs: "Jobs", chat: "Chat", alerts: "Alerts", profile: "Profile" },
+    nav: { home: "Home", bookings: "Bookings", jobs: "Jobs", chat: "Chat", messages: "Messages", wallet: "Wallet", alerts: "Alerts", profile: "Profile" },
     common: { 
       save: "Save Changes", cancel: "Cancel", edit: "Edit", delete: "Delete", 
       loading: "Loading...", logout: "Log Out", back: "Back", success: "Success", error: "Error",
@@ -203,7 +203,7 @@ export const translations: Record<Language, Record<string, any>> = {
     }
   },
   ta: {
-    nav: { home: "முகப்பு", jobs: "பணிகள்", chat: "அரட்டை", alerts: "அறிவிப்புகள்", profile: "சுயவிவரம்" },
+    nav: { home: "முகப்பு", bookings: "பதிவுகள்", jobs: "பணிகள்", chat: "அரட்டை", messages: "செய்திகள்", wallet: "பணப்பை", alerts: "அறிவிப்புகள்", profile: "சுயவிவரம்" },
     common: { 
       save: "மாற்றங்களைச் சேமி", cancel: "ரத்து செய்", edit: "திருத்து", delete: "நீக்கு", 
       loading: "ஏற்றப்படுகிறது...", logout: "வெளியேறு", back: "பின்னால்", success: "வெற்றி", error: "பிழை",
@@ -385,7 +385,7 @@ export const translations: Record<Language, Record<string, any>> = {
     }
   },
   ml: {
-    nav: { home: "ഹോം", jobs: "ജോലികൾ", chat: "ചാറ്റ്", alerts: "അലേർട്ടുകൾ", profile: "പ്രൊഫൈൽ" },
+    nav: { home: "ഹോം", bookings: "ബുക്കിംഗുകൾ", jobs: "ജോലികൾ", chat: "ചാറ്റ്", messages: "സന്ദേശങ്ങൾ", wallet: "വാലറ്റ്", alerts: "അലേർട്ടുകൾ", profile: "പ്രൊഫൈൽ" },
     common: { 
       save: "മാറ്റങ്ങൾ സേവ് ചെയ്യുക", cancel: "റദ്ദാക്കുക", edit: "തിരുത്തുക", delete: "ഡിലീറ്റ് ചെയ്യുക", 
       loading: "ലോഡിംഗ്...", logout: "ലോഗ് ഔട്ട്", back: "ബാക്ക്", success: "വിജയം", error: "പിശക്",

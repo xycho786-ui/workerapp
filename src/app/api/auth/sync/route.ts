@@ -26,7 +26,7 @@ export async function POST(request: Request) {
     }
     
     console.log('API /api/auth/sync: Request body:', JSON.stringify(body));
-    const { id, email, name, phone, role, profession, customProfession } = body;
+    const { id, email, name, phone, role, profession, customProfession, userType } = body;
 
     if (!id || !email || !name) {
       console.warn('API /api/auth/sync: Missing required fields');
@@ -40,20 +40,21 @@ export async function POST(request: Request) {
     
     const userRole = role || 'CUSTOMER';
     const userPhone = phone || null;
+    const finalUserType = userType || 'worker';
 
-    // First, check if user exists by email
-    const existingUsers = await sql`SELECT id FROM "User" WHERE email = ${email}`;
+    // First, check if user exists by ID or by (email AND role)
+    const existingUsers = await sql`SELECT id FROM "User" WHERE id = ${id} OR (email = ${email} AND role = CAST(${userRole} AS "Role"))`;
     
     let userRecord;
 
     if (existingUsers.length > 0) {
-      console.log('API /api/auth/sync: User found by email, updating details');
+      console.log('API /api/auth/sync: User found, updating details');
       // Intentionally omitting role update to prevent accidental role downgrades on login
       // The role should only be set on initial signup
       const updated = await sql`
         UPDATE "User" 
         SET id = ${id}, name = ${name}, phone = COALESCE(${userPhone}, phone), "updatedAt" = NOW()
-        WHERE email = ${email}
+        WHERE id = ${existingUsers[0].id}
         RETURNING *
       `;
       userRecord = updated[0];
@@ -118,11 +119,11 @@ export async function POST(request: Request) {
         )
         VALUES (
           gen_random_uuid(), ${userRecord.id}, ${skillsArray}::text[], 0, false, 0.0, 0, 
-          'worker', ${professionList}::text[], ${customProfession || ''}, ${categoryId}, NOW()
+          ${finalUserType}, ${professionList}::text[], ${customProfession || ''}, ${categoryId}, NOW()
         )
         ON CONFLICT ("userId") DO UPDATE
         SET 
-          "userType" = 'worker',
+          "userType" = ${finalUserType},
           "skills" = COALESCE(${skillsArray}::text[], "WorkerProfile"."skills"),
           "profession" = COALESCE(${professionList}::text[], "WorkerProfile"."profession"),
           "customProfession" = COALESCE(${customProfession || ''}, "WorkerProfile"."customProfession"),

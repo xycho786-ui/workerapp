@@ -12,7 +12,7 @@ export default async function CustomerJobsPage() {
   }
 
   const dbUser = await prisma.user.findUnique({
-    where: { email: user.email },
+    where: { id: user.id },
   });
 
   if (!dbUser) {

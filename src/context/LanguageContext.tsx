@@ -14,6 +14,27 @@ const LanguageContext = createContext<LanguageContextType | undefined>(undefined
 export function LanguageProvider({ children, initialLanguage }: { children: React.ReactNode, initialLanguage: Language }) {
   const [language, setLanguageState] = useState<Language>(initialLanguage);
 
+  useEffect(() => {
+    const handleRejection = (event: PromiseRejectionEvent) => {
+      const errorMsg = event.reason?.message || '';
+      const isAuthError = 
+        errorMsg.includes('Refresh token is not valid') || 
+        errorMsg.includes('refresh_token') || 
+        errorMsg.includes('AuthApiError') ||
+        (event.reason?.name === 'AuthApiError');
+      
+      if (isAuthError) {
+        console.warn('Suppressed unhandled AuthApiError (invalid refresh token):', event.reason);
+        event.preventDefault();
+      }
+    };
+
+    window.addEventListener('unhandledrejection', handleRejection);
+    return () => {
+      window.removeEventListener('unhandledrejection', handleRejection);
+    };
+  }, []);
+
   const setLanguage = async (lang: Language) => {
     setLanguageState(lang);
     // Write cookie for server-side layout rendering

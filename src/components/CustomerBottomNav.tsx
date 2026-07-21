@@ -3,15 +3,15 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import clsx from "clsx";
-import { Home, Briefcase, MessageSquare, Bell, User } from "lucide-react";
+import { Home, Briefcase, MessageSquare, Wallet, User } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useLanguage } from "@/context/LanguageContext";
 
 const navRoutes = [
   { key: "home", href: "/customer/dashboard", icon: <Home className="w-6 h-6" /> },
-  { key: "jobs", href: "/customer/jobs", icon: <Briefcase className="w-6 h-6" /> },
-  { key: "chat", href: "/customer/chat", icon: <MessageSquare className="w-6 h-6" /> },
-  { key: "alerts", href: "/customer/notifications", icon: <Bell className="w-6 h-6" /> },
+  { key: "bookings", href: "/customer/services", icon: <Briefcase className="w-6 h-6" /> },
+  { key: "messages", href: "/customer/chat", icon: <MessageSquare className="w-6 h-6" /> },
+  { key: "wallet", href: "/customer/wallet", icon: <Wallet className="w-6 h-6" /> },
   { key: "profile", href: "/customer/profile", icon: <User className="w-6 h-6" /> },
 ];
 
@@ -43,7 +43,7 @@ export default function CustomerBottomNav() {
       }
     }
     fetchUnreadCounts();
-    const interval = setInterval(fetchUnreadCounts, 4000);
+    const interval = setInterval(fetchUnreadCounts, 20000);
     return () => clearInterval(interval);
   }, []);
 
@@ -53,10 +53,8 @@ export default function CustomerBottomNav() {
         const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`);
         
         let badgeCount = 0;
-        if (item.key === "chat") {
+        if (item.key === "messages") {
           badgeCount = unreadCounts.unreadMessagesCount;
-        } else if (item.key === "alerts") {
-          badgeCount = unreadCounts.unreadNotificationsCount;
         }
 
         return (

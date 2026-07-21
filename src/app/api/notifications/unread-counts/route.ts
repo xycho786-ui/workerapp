@@ -12,7 +12,7 @@ export async function GET() {
     }
 
     const dbUser = await prisma.user.findUnique({
-      where: { email: user.email },
+      where: { id: user.id },
       include: {
         workerProfile: true
       }

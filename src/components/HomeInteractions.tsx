@@ -140,11 +140,18 @@ export default function HomeInteractions({ userName, userEmail }: { userName?: s
                 <HelpCircle size={18} className="text-gray-400" /> Support
               </Link>
               {userEmail ? (
-                <form action="/api/auth/signout" method="POST">
-                  <button className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-red-50 text-red-600 font-medium transition-colors mt-1 text-sm">
-                    <LogOut size={18} /> Logout
-                  </button>
-                </form>
+                <button 
+                  onClick={async () => {
+                    const { createClient } = await import("@/utils/supabase/client");
+                    const supabase = createClient();
+                    await supabase.auth.signOut();
+                    document.cookie = "sb-active-role=; path=/; max-age=0";
+                    window.location.href = "/login";
+                  }}
+                  className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-red-50 text-red-600 font-medium transition-colors mt-1 text-sm cursor-pointer"
+                >
+                  <LogOut size={18} /> Logout
+                </button>
               ) : (
                 <Link href="/login" className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-primary/10 text-primary font-medium transition-colors mt-1 text-sm">
                   <UserCircle size={18} /> Login

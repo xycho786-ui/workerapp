@@ -1,30 +1,44 @@
-import { PrismaClient, Role } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import * as dotenv from 'dotenv';
+dotenv.config({ path: '.env.local' });
+import { Role } from '@prisma/client';
 
 async function main() {
+  const { prisma } = await import('../src/lib/prisma');
   console.log('Seeding database...');
+  console.log('DATABASE_URL:', process.env.DATABASE_URL);
 
   // Create some users
-  const user1 = await prisma.user.upsert({
-    where: { email: 'alex@example.com' },
-    update: {},
-    create: {
+  let user1 = await prisma.user.findFirst({
+    where: {
       email: 'alex@example.com',
-      name: 'Alex Johnson',
       role: Role.WORKER,
     },
   });
+  if (!user1) {
+    user1 = await prisma.user.create({
+      data: {
+        email: 'alex@example.com',
+        name: 'Alex Johnson',
+        role: Role.WORKER,
+      },
+    });
+  }
 
-  const user2 = await prisma.user.upsert({
-    where: { email: 'michael@example.com' },
-    update: {},
-    create: {
+  let user2 = await prisma.user.findFirst({
+    where: {
       email: 'michael@example.com',
-      name: 'Michael Brown',
       role: Role.WORKER,
     },
   });
+  if (!user2) {
+    user2 = await prisma.user.create({
+      data: {
+        email: 'michael@example.com',
+        name: 'Michael Brown',
+        role: Role.WORKER,
+      },
+    });
+  }
 
   // Create Locations first to avoid nested relation issues
   const loc1 = await prisma.location.create({
@@ -44,35 +58,47 @@ async function main() {
   });
 
   // Create Worker Profiles
-  await prisma.workerProfile.upsert({
+  const profile1 = await prisma.workerProfile.findUnique({
     where: { userId: user1.id },
-    update: {
-      locationId: loc1.id,
-    },
-    create: {
-      userId: user1.id,
-      skills: ['Electrician', 'Residential'],
-      experience: 10,
-      hourlyRate: 45,
-      isOnline: true,
-      locationId: loc1.id,
-    },
   });
+  if (!profile1) {
+    await prisma.workerProfile.create({
+      data: {
+        userId: user1.id,
+        skills: ['Electrician', 'Residential'],
+        experience: 10,
+        hourlyRate: 45,
+        isOnline: true,
+        locationId: loc1.id,
+      },
+    });
+  } else {
+    await prisma.workerProfile.update({
+      where: { userId: user1.id },
+      data: { locationId: loc1.id },
+    });
+  }
 
-  await prisma.workerProfile.upsert({
+  const profile2 = await prisma.workerProfile.findUnique({
     where: { userId: user2.id },
-    update: {
-      locationId: loc2.id,
-    },
-    create: {
-      userId: user2.id,
-      skills: ['Plumber', 'Commercial'],
-      experience: 8,
-      hourlyRate: 55,
-      isOnline: false,
-      locationId: loc2.id,
-    },
   });
+  if (!profile2) {
+    await prisma.workerProfile.create({
+      data: {
+        userId: user2.id,
+        skills: ['Plumber', 'Commercial'],
+        experience: 8,
+        hourlyRate: 55,
+        isOnline: false,
+        locationId: loc2.id,
+      },
+    });
+  } else {
+    await prisma.workerProfile.update({
+      where: { userId: user2.id },
+      data: { locationId: loc2.id },
+    });
+  }
 
   console.log('Seed completed successfully!');
 }
@@ -83,5 +109,6 @@ main()
     process.exit(1);
   })
   .finally(async () => {
+    const { prisma } = await import('../src/lib/prisma');
     await prisma.$disconnect();
   });

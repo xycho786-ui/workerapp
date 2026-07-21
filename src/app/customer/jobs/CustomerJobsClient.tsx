@@ -19,7 +19,8 @@ import {
   TrendingUp,
   MapPin,
   Sparkles,
-  CreditCard
+  CreditCard,
+  ArrowLeft
 } from "lucide-react";
 import Link from "next/link";
 import { useLanguage } from "@/context/LanguageContext";
@@ -27,6 +28,7 @@ import Portal from "@/components/Portal";
 import PaymentSheet from "@/components/PaymentSheet";
 import { cancelBooking, cancelServiceRequest, createReview } from "./actions";
 import Image from "next/image";
+import CustomerSidebarDrawer from "@/components/CustomerSidebarDrawer";
 
 interface WorkerUser {
   name: string;
@@ -207,7 +209,8 @@ export default function CustomerJobsClient({
       {/* 1. Header Navigation Bar (Matches App Header) */}
       <div className="bg-white px-5 pt-12 pb-4 shadow-[0_2px_8px_rgba(0,0,0,0.02)] sticky top-0 z-40 border-b border-[#F0F0F0]">
         <div className="flex justify-between items-center">
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
+            <CustomerSidebarDrawer />
             <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#E8514A]/10 to-[#E8514A]/20 flex items-center justify-center text-[#E8514A] font-extrabold text-[15px] border-[2px] border-white shadow-sm">
               {initials}
             </div>
@@ -428,8 +431,8 @@ export default function CustomerJobsClient({
                       {booking.price && <span className="text-[#E8514A]">₹{booking.price}</span>}
                     </div>
 
-                    {/* OTP Banner (If ACCEPTED/Waiting for OTP) */}
-                    {isAccepted && (
+                    {/* OTP Banner (If ACCEPTED or IN_PROGRESS) */}
+                    {(isAccepted || isInProgress) && (
                       <div className="bg-[#F6F8FF] border border-blue-100/30 rounded-2xl p-4 mb-4 text-center relative flex flex-col items-center">
                         <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1 flex items-center gap-1">
                           Your Verification Code

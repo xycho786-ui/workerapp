@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { createClient } from '@/utils/supabase/server';
+import { db as firebaseDb, messaging } from '@/lib/firebaseAdmin';
 
 export async function GET(request: Request) {
   try {
@@ -37,7 +38,7 @@ export async function GET(request: Request) {
 
     // Resolve current DB user
     const dbUser = await prisma.user.findUnique({
-      where: { email: user.email }
+      where: { id: user.id }
     });
 
     if (!dbUser) {
@@ -66,11 +67,41 @@ export async function GET(request: Request) {
       return NextResponse.json({ messages: [], bookingStatus: booking.status });
     }
 
-    // Fetch messages
-    const rawMessages = await prisma.message.findMany({
-      where: { conversationId: conversation.id },
-      orderBy: { createdAt: 'asc' }
-    });
+    // Fetch messages from Firestore if connected, otherwise fallback to local Prisma DB
+    let rawMessages: any[] = [];
+    let fetchedFromFirebase = false;
+
+    if (firebaseDb) {
+      try {
+        const snapshot = await firebaseDb
+          .collection('conversations')
+          .doc(conversation.id)
+          .collection('messages')
+          .orderBy('createdAt', 'asc')
+          .get();
+
+        rawMessages = snapshot.docs.map(doc => {
+          const data = doc.data();
+          return {
+            id: doc.id,
+            senderId: data.senderId,
+            content: data.content,
+            isRead: data.isRead,
+            createdAt: new Date(data.createdAt)
+          };
+        });
+        fetchedFromFirebase = true;
+      } catch (fbGetErr) {
+        console.error('Failed to get messages from Firestore, falling back to local database:', fbGetErr);
+      }
+    }
+
+    if (!fetchedFromFirebase) {
+      rawMessages = await prisma.message.findMany({
+        where: { conversationId: conversation.id },
+        orderBy: { createdAt: 'asc' }
+      });
+    }
 
     // Parse and filter messages belonging to this specific bookingId
     const filteredMessages = rawMessages.map(msg => {
@@ -120,6 +151,25 @@ export async function GET(request: Request) {
         },
         data: { isRead: true }
       });
+
+      // Update in Firestore
+      if (firebaseDb) {
+        const unreadSnapshot = await firebaseDb
+          .collection('conversations')
+          .doc(conversation.id)
+          .collection('messages')
+          .where('senderId', '!=', dbUser.id)
+          .where('isRead', '==', false)
+          .get();
+
+        if (!unreadSnapshot.empty) {
+          const batch = firebaseDb.batch();
+          unreadSnapshot.docs.forEach(doc => {
+            batch.update(doc.ref, { isRead: true });
+          });
+          await batch.commit();
+        }
+      }
     } catch (updateError) {
       console.warn("Failed to mark messages as read:", updateError);
     }
@@ -181,6 +231,10 @@ export async function POST(request: Request) {
     }
 
     // Verify booking status is active
+    if (booking.status === "PENDING") {
+      return NextResponse.json({ message: 'Messaging is disabled until the booking has been accepted by both the customer and the worker.' }, { status: 400 });
+    }
+
     const isCompleted = booking.status === "COMPLETED" || booking.status === "CANCELLED" || booking.status === "REJECTED";
     if (isCompleted) {
       return NextResponse.json({ message: 'This conversation has been closed because the booking has ended.' }, { status: 400 });
@@ -188,7 +242,7 @@ export async function POST(request: Request) {
 
     // Resolve current DB user
     const dbUser = await prisma.user.findUnique({
-      where: { email: user.email }
+      where: { id: user.id }
     });
 
     if (!dbUser) {
@@ -230,7 +284,7 @@ export async function POST(request: Request) {
       address
     });
 
-    // Create the message
+    // Create the message locally
     const message = await prisma.message.create({
       data: {
         conversationId: conversation.id,
@@ -240,11 +294,62 @@ export async function POST(request: Request) {
       }
     });
 
-    // Also trigger a notification for the other participant
+    // Save message to Firebase Firestore
+    if (firebaseDb) {
+      try {
+        await firebaseDb
+          .collection('conversations')
+          .doc(conversation.id)
+          .collection('messages')
+          .doc(message.id)
+          .set({
+            id: message.id,
+            conversationId: conversation.id,
+            senderId: dbUser.id,
+            content: jsonContent,
+            isRead: false,
+            createdAt: message.createdAt.toISOString()
+          });
+      } catch (fbErr) {
+        console.error('Failed to write message to Firestore:', fbErr);
+      }
+    }
+
+    // Trigger FCM Notification to recipient
+    const recipientId = isCustomer ? booking.worker.userId : booking.customerId;
+    const recipientUser = await prisma.user.findUnique({
+      where: { id: recipientId }
+    });
+
+    if (recipientUser && recipientUser.fcmToken && messaging) {
+      try {
+        const typeLabel = type === 'voice' ? 'voice message' : type === 'location' ? 'location share' : 'message';
+        const notificationTitle = `💬 New message from ${dbUser.name}`;
+        const notificationBody = type === 'text' 
+          ? (text.length > 50 ? `${text.substring(0, 50)}...` : text) 
+          : `Sent you a ${typeLabel}.`;
+
+        await messaging.send({
+          token: recipientUser.fcmToken,
+          notification: {
+            title: notificationTitle,
+            body: notificationBody
+          },
+          data: {
+            bookingId,
+            senderId: dbUser.id,
+            type,
+            click_action: 'FLUTTER_NOTIFICATION_CLICK'
+          }
+        });
+      } catch (fcmError) {
+        console.warn("Failed to send FCM push notification:", fcmError);
+      }
+    }
+
+    // Trigger app local Notification for fallback
     try {
-      const recipientId = isCustomer ? booking.worker.userId : booking.customerId;
       const typeLabel = type === 'voice' ? 'voice message' : type === 'location' ? 'location share' : 'new message';
-      
       await prisma.notification.create({
         data: {
           userId: recipientId,
@@ -256,7 +361,7 @@ export async function POST(request: Request) {
         }
       });
     } catch (notifError) {
-      console.warn("Failed to create notification for message:", notifError);
+      console.warn("Failed to create local notification for message:", notifError);
     }
 
     return NextResponse.json({ 

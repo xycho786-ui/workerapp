@@ -1,0 +1,136 @@
+/* Viewport and 3D setup */
+.book-viewport {
+  perspective: 1200px;
+  position: relative;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  min-height: auto;
+}
+
+.book-container {
+  position: relative;
+  width: 100%;
+  max-width: 440px; /* matches the size of the form */
+  min-height: 520px;
+  transform-style: preserve-3d;
+  will-change: transform;
+}
+
+/* Common page style */
+.book-page {
+  position: absolute;
+  top: 0;
+  width: 50%;
+  height: 100%;
+  backface-visibility: hidden;
+  will-change: transform, opacity;
+  transition: transform 1.2s cubic-bezier(0.25, 0.8, 0.25, 1), opacity 1.2s cubic-bezier(0.25, 0.8, 0.25, 1);
+  box-shadow: 0px 20px 50px rgba(0, 0, 0, 0.15);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  color: white;
+  padding: 1.5rem;
+  user-select: none;
+  z-index: 10;
+}
+
+/* Left Page (Welcome / Spine cover) */
+.book-page-left {
+  left: 0;
+  transform-origin: left center;
+  background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-light) 100%);
+  border-top-left-radius: 1.5rem;
+  border-bottom-left-radius: 1.5rem;
+  border-right: 1px solid rgba(255, 255, 255, 0.1);
+  transform: rotateY(0deg);
+}
+
+/* Right Page (Cover) */
+.book-page-right {
+  right: 0;
+  transform-origin: right center;
+  background: linear-gradient(135deg, var(--color-primary-light) 0%, var(--color-secondary) 100%);
+  border-top-right-radius: 1.5rem;
+  border-bottom-right-radius: 1.5rem;
+  border-left: 1px solid rgba(255, 255, 255, 0.1);
+  transform: rotateY(0deg);
+}
+
+/* Active/Open state rotations */
+.book-container.is-open .book-page-left {
+  transform: rotateY(-160deg);
+  opacity: 0; /* Fully fade out as it opens to reveal inside */
+  pointer-events: none;
+}
+
+.book-container.is-open .book-page-right {
+  transform: rotateY(160deg);
+  opacity: 0; /* Fully fade out as it opens to reveal inside */
+  pointer-events: none;
+}
+
+/* Content hidden behind the book covers */
+.book-content-inside {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  background: white;
+  border-radius: 1.5rem;
+  border: 1px solid #f1f5f9;
+  padding: 2.25rem 2rem;
+  opacity: 0;
+  transform: scale(0.96) translateY(20px);
+  transition: opacity 1s cubic-bezier(0.25, 0.8, 0.25, 1), transform 1s cubic-bezier(0.25, 0.8, 0.25, 1);
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.05);
+}
+
+.book-container.is-open .book-content-inside {
+  opacity: 1;
+  transform: scale(1) translateY(0);
+  transition-delay: 0.3s;
+}
+
+/* Staggered form field reveal */
+.stagger-reveal {
+  opacity: 0;
+  transform: translateY(15px);
+  transition: opacity 0.6s cubic-bezier(0.25, 0.8, 0.25, 1), transform 0.6s cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+
+.book-container.is-open .stagger-reveal {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Stagger delays */
+.book-container.is-open .stagger-delay-1 { transition-delay: 0.45s; }
+.book-container.is-open .stagger-delay-2 { transition-delay: 0.55s; }
+.book-container.is-open .stagger-delay-3 { transition-delay: 0.65s; }
+.book-container.is-open .stagger-delay-4 { transition-delay: 0.75s; }
+.book-container.is-open .stagger-delay-5 { transition-delay: 0.85s; }
+.book-container.is-open .stagger-delay-6 { transition-delay: 0.95s; }
+.book-container.is-open .stagger-delay-7 { transition-delay: 1.05s; }
+
+/* Reduced motion accessibility support */
+@media (prefers-reduced-motion: reduce) {
+  .book-page {
+    transition: opacity 0.5s ease !important;
+    transform: none !important;
+  }
+  .book-container.is-open .book-page {
+    opacity: 0 !important;
+  }
+  .book-content-inside {
+    transition: opacity 0.5s ease !important;
+    transform: none !important;
+  }
+  .stagger-reveal {
+    transition: none !important;
+    transform: none !important;
+    opacity: 1 !important;
+  }
+}

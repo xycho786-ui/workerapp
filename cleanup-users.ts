@@ -8,7 +8,13 @@ async function main() {
     const email2 = 'xycho786@gmail.com';
     
     console.log('Attempting to delete users from auth.users...');
-    const result = await sql`DELETE FROM auth.users WHERE email IN (${email}, ${email2}) RETURNING email`;
+    const result = await sql`
+      DELETE FROM auth.users 
+      WHERE email IN (${email}, ${email2}) 
+         OR email LIKE ${'%' + email} 
+         OR email LIKE ${'%' + email2} 
+      RETURNING email
+    `;
     
     console.log('Deleted from auth.users:', result);
     

@@ -4,20 +4,8 @@ import { useState } from "react";
 import { createClient } from "@/utils/supabase/client";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Wrench, Zap, Sparkles, Wind, Paintbrush, Hammer, Bug, Scissors, Briefcase, Check } from "lucide-react";
-
-const PROFESSIONS = [
-  { name: "Plumbing", icon: Wrench },
-  { name: "Electrical", icon: Zap },
-  { name: "Cleaning", icon: Sparkles },
-  { name: "AC Repair", icon: Wind },
-  { name: "Painting", icon: Paintbrush },
-  { name: "Carpentry", icon: Hammer },
-  { name: "Pest Control", icon: Bug },
-  { name: "Salon", icon: Scissors },
-  { name: "Others", icon: Briefcase },
-];
-
+import BookOpenWrapper from "../BookOpenWrapper";
+import { User, Mail, Phone, Lock, ArrowRight, Loader2 } from "lucide-react";
 
 export default function SignupPage() {
   const router = useRouter();
@@ -26,32 +14,14 @@ export default function SignupPage() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
 
-  const [selectedProfessions, setSelectedProfessions] = useState<string[]>([]);
-  const [customProfession, setCustomProfession] = useState("");
-
-  const handleToggleProfession = (name: string) => {
-    setSelectedProfessions(prev => {
-      if (prev.includes(name)) {
-        const next = prev.filter(p => p !== name);
-        if (name === "Others") {
-          setCustomProfession("");
-        }
-        return next;
-      } else {
-        return [...prev, name];
-      }
-    });
-  };
-
   const [formData, setFormData] = useState({
     name: "",
     email: "",
     phone: "",
     password: "",
-    role: "CUSTOMER", // Default role
   });
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
@@ -60,46 +30,35 @@ export default function SignupPage() {
     setLoading(true);
     setError(null);
 
-    // CRITICAL CHECK: Ensure env vars are loaded
     if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
-      setError("Server needs to be restarted! Press Ctrl+C in your terminal and run 'npm run dev' again to load the new .env.local file.");
+      setError("Server needs to be restarted!");
       setLoading(false);
       return;
     }
 
-    // Validation rules for worker profession selection
-    if (formData.role === "WORKER") {
-      if (selectedProfessions.length === 0) {
-        setError("Please select your profession.");
-        setLoading(false);
-        return;
-      }
-      if (selectedProfessions.includes("Others") && !customProfession.trim()) {
-        setError("Please enter your profession.");
-        setLoading(false);
-        return;
-      }
-    }
-
     try {
-      // 1. Sign up with Supabase
+      const dbRole = "CUSTOMER";
+      const selectedRoles = ["customer"];
+      const primaryUserType = "customer";
+
+      // 1. Sign up with Supabase using role-prefixed email
+      const internalEmail = `${dbRole.toLowerCase()}_${formData.email}`;
       const { data: authData, error: authError } = await supabase.auth.signUp({
-        email: formData.email,
+        email: internalEmail,
         password: formData.password,
         options: {
           data: {
             full_name: formData.name,
-            role: formData.role,
-            phone: formData.phone,
-            profession: formData.role === "WORKER" ? selectedProfessions : undefined,
-            customProfession: formData.role === "WORKER" && selectedProfessions.includes("Others") ? customProfession.trim() : undefined,
+            role: dbRole,
+            roles: selectedRoles,
+            phone: formData.phone || undefined,
           }
         }
       });
 
       if (authError) throw authError;
 
-      // 2. Sync to MongoDB via our API route
+      // 2. Sync to Postgres database
       if (authData.user) {
         const res = await fetch("/api/auth/sync", {
           method: "POST",
@@ -108,10 +67,9 @@ export default function SignupPage() {
             id: authData.user.id, 
             email: formData.email,
             name: formData.name,
-            phone: formData.phone,
-            role: formData.role,
-            profession: formData.role === "WORKER" ? selectedProfessions : undefined,
-            customProfession: formData.role === "WORKER" && selectedProfessions.includes("Others") ? customProfession.trim() : undefined,
+            phone: formData.phone || null,
+            role: dbRole,
+            userType: primaryUserType,
           }),
         });
 
@@ -121,8 +79,7 @@ export default function SignupPage() {
             const apiError = await res.json();
             errorMessage = apiError.message || errorMessage;
           } catch (jsonParseError) {
-            console.error("API returned non-JSON error response:", res.status, res.statusText);
-            errorMessage = `Server error (${res.status}): Please check the server logs. Database connection might be failing.`;
+            errorMessage = `Server error (${res.status}): Please check the server logs.`;
           }
           throw new Error(errorMessage);
         }
@@ -142,179 +99,130 @@ export default function SignupPage() {
 
   if (success) {
     return (
-      <div className="flex flex-col items-center justify-center text-center space-y-4 pt-12">
-        <div className="w-16 h-16 bg-primary/20 text-primary rounded-full flex items-center justify-center text-2xl mb-4">✓</div>
-        <h2 className="text-2xl font-bold text-gray-900">Account Created!</h2>
-        <p className="text-gray-600">You are being redirected to the home page...</p>
+      <div className="flex flex-col items-center justify-center text-center py-12 h-full space-y-4">
+        <div className="w-16 h-16 bg-emerald-50 text-emerald-500 rounded-full flex items-center justify-center text-2xl mb-2 animate-bounce">✓</div>
+        <h2 className="text-xl font-black text-slate-800">Account Created!</h2>
+        <p className="text-xs text-slate-400 font-semibold">You are being redirected to the home page...</p>
       </div>
     );
   }
 
   return (
-    <div className="w-full max-w-sm mx-auto space-y-6">
-      <div className="text-center">
-        <h1 className="text-2xl font-bold text-gray-900">Create an Account</h1>
-        <p className="text-sm text-gray-500 mt-2">Join the WBSP community today.</p>
-      </div>
-
-      <form onSubmit={handleSignup} className="space-y-4">
-        {error && (
-          <div className="p-3 bg-red-50 text-red-600 border border-red-100 rounded-xl text-sm">
-            {error}
-          </div>
-        )}
-
-        <div className="space-y-1">
-          <label className="text-sm font-medium text-gray-700">I want to...</label>
-          <div className="grid grid-cols-2 gap-3 mt-1">
-            <button
-              type="button"
-              onClick={() => setFormData({ ...formData, role: "CUSTOMER" })}
-              className={`py-2 text-sm font-semibold rounded-xl border transition-colors ${
-                formData.role === "CUSTOMER" 
-                ? "bg-primary text-white border-primary shadow-sm shadow-primary/20" 
-                : "bg-white text-gray-600 border-gray-200 hover:bg-gray-50"
-              }`}
-            >
-              Hire Workers
-            </button>
-            <button
-              type="button"
-              onClick={() => setFormData({ ...formData, role: "WORKER" })}
-              className={`py-2 text-sm font-semibold rounded-xl border transition-colors ${
-                formData.role === "WORKER" 
-                ? "bg-primary text-white border-primary shadow-sm shadow-primary/20" 
-                : "bg-white text-gray-600 border-gray-200 hover:bg-gray-50"
-              }`}
-            >
-              Find Work
-            </button>
-          </div>
+    <BookOpenWrapper title="Create Account" subtitle="Join the WBSP community today.">
+      <div className="w-full max-w-sm mx-auto space-y-6">
+        <div className="text-center stagger-reveal stagger-delay-1">
+          <h1 className="text-xl font-black text-slate-800 tracking-tight">Create Account</h1>
+          <p className="text-xs text-slate-400 font-semibold mt-1">Start your journey as a Customer today.</p>
         </div>
 
-        <div className="space-y-1">
-          <label className="text-sm font-medium text-gray-700">Full Name</label>
-          <input 
-            type="text" 
-            name="name"
-            required
-            value={formData.name}
-            onChange={handleChange}
-            className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-sm"
-            placeholder="John Doe"
-          />
-        </div>
-
-        <div className="space-y-1">
-          <label className="text-sm font-medium text-gray-700">Email</label>
-          <input 
-            type="email" 
-            name="email"
-            required
-            value={formData.email}
-            onChange={handleChange}
-            className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-sm"
-            placeholder="you@example.com"
-          />
-        </div>
-
-        <div className="space-y-1">
-          <label className="text-sm font-medium text-gray-700">Phone (Optional)</label>
-          <input 
-            type="tel" 
-            name="phone"
-            value={formData.phone}
-            onChange={handleChange}
-            className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-sm"
-            placeholder="+1 234 567 890"
-          />
-        </div>
-
-        <div className="space-y-1">
-          <label className="text-sm font-medium text-gray-700">Password</label>
-          <input 
-            type="password" 
-            name="password"
-            required
-            value={formData.password}
-            onChange={handleChange}
-            className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-sm"
-            placeholder="••••••••"
-          />
-        </div>
-
-        {formData.role === "WORKER" && (
-          <div className="space-y-4 pt-2">
-            <label className="text-sm font-semibold text-slate-800 block">Select Your Profession(s)</label>
-            <div className="grid grid-cols-3 gap-3">
-              {PROFESSIONS.map((p) => {
-                const Icon = p.icon;
-                const isSelected = selectedProfessions.includes(p.name);
-                return (
-                  <button
-                    key={p.name}
-                    type="button"
-                    onClick={() => handleToggleProfession(p.name)}
-                    className={`flex flex-col items-center justify-center p-3 rounded-2xl border aspect-square relative transition-all duration-300 hover:scale-[1.03] hover:-translate-y-0.5 active:scale-95 group shadow-[0_4px_12px_rgba(0,0,0,0.02)] ${
-                      isSelected
-                        ? "bg-gradient-to-br from-primary to-[#F4978E] border-transparent shadow-lg shadow-primary/20 text-white"
-                        : "bg-white border-slate-100 hover:border-primary/25 text-slate-600 hover:shadow-md"
-                    }`}
-                  >
-                    {/* Checkmark Badge */}
-                    {isSelected && (
-                      <div className="absolute top-2 right-2 w-5 h-5 bg-white text-primary rounded-full flex items-center justify-center shadow-md animate-in zoom-in duration-200">
-                        <Check size={11} className="stroke-[3]" />
-                      </div>
-                    )}
-                    
-                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-colors duration-300 ${
-                      isSelected ? "bg-white/15 text-white" : "bg-primary/5 text-primary group-hover:bg-primary/10"
-                    }`}>
-                      <Icon size={22} className="stroke-[1.75]" />
-                    </div>
-                    
-                    <span className={`text-[11px] font-bold text-center mt-2.5 leading-tight truncate w-full transition-colors duration-300 ${
-                      isSelected ? "text-white" : "text-slate-700 group-hover:text-primary"
-                    }`}>
-                      {p.name}
-                    </span>
-                  </button>
-                );
-              })}
+        <form onSubmit={handleSignup} className="space-y-4">
+          {error && (
+            <div className="p-3 bg-red-50 text-red-650 border border-red-100 rounded-2xl text-xs font-bold leading-relaxed stagger-reveal stagger-delay-2 animate-pulse">
+              {error}
             </div>
+          )}
 
-            {selectedProfessions.includes("Others") && (
-              <div className="space-y-1.5 mt-4 animate-in fade-in slide-in-from-top-2 duration-200">
-                <label className="text-xs font-semibold text-slate-500">Your Profession</label>
-                <input
-                  type="text"
-                  value={customProfession}
-                  onChange={(e) => setCustomProfession(e.target.value)}
-                  placeholder="Enter your profession"
-                  className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-sm text-gray-800"
-                  required
-                />
+          {/* Full Name */}
+          <div className="space-y-1 stagger-reveal stagger-delay-2 relative">
+            <label className="text-[10px] font-extrabold text-slate-450 uppercase tracking-wider block">Full Name</label>
+            <div className="relative mt-1">
+              <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                <User size={16} />
               </div>
-            )}
+              <input 
+                type="text" 
+                name="name"
+                required
+                value={formData.name}
+                onChange={handleChange}
+                className="block w-full pl-10 pr-4 py-3 border border-slate-200 bg-slate-50 rounded-2xl text-xs focus:outline-none focus:bg-white focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all placeholder:text-slate-400 font-semibold text-slate-800 shadow-inner"
+                placeholder="John Doe"
+              />
+            </div>
           </div>
-        )}
 
-        <button 
-          type="submit" 
-          disabled={loading}
-          className="w-full mt-4 bg-primary hover:bg-primary-light text-white font-semibold py-3.5 rounded-xl transition-colors text-sm shadow-sm shadow-primary/20 disabled:opacity-70"
-        >
-          {loading ? "Creating account..." : "Sign Up"}
-        </button>
-      </form>
+          {/* Email */}
+          <div className="space-y-1 stagger-reveal stagger-delay-3 relative">
+            <label className="text-[10px] font-extrabold text-slate-450 uppercase tracking-wider block">Email</label>
+            <div className="relative mt-1">
+              <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                <Mail size={16} />
+              </div>
+              <input 
+                type="email" 
+                name="email"
+                required
+                value={formData.email}
+                onChange={handleChange}
+                className="block w-full pl-10 pr-4 py-3 border border-slate-200 bg-slate-50 rounded-2xl text-xs focus:outline-none focus:bg-white focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all placeholder:text-slate-400 font-semibold text-slate-800 shadow-inner"
+                placeholder="you@example.com"
+              />
+            </div>
+          </div>
 
-      <div className="text-center text-sm text-gray-600 mt-6">
-        Already have an account?{" "}
-        <Link href="/login" className="text-primary font-semibold hover:underline">
-          Log in
-        </Link>
+          {/* Phone */}
+          <div className="space-y-1 stagger-reveal stagger-delay-4 relative">
+            <label className="text-[10px] font-extrabold text-slate-450 uppercase tracking-wider block">Phone (Optional)</label>
+            <div className="relative mt-1">
+              <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                <Phone size={16} />
+              </div>
+              <input 
+                type="tel" 
+                name="phone"
+                value={formData.phone}
+                onChange={handleChange}
+                className="block w-full pl-10 pr-4 py-3 border border-slate-200 bg-slate-50 rounded-2xl text-xs focus:outline-none focus:bg-white focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all placeholder:text-slate-400 font-semibold text-slate-800 shadow-inner"
+                placeholder="+91 98765 43210"
+              />
+            </div>
+          </div>
+
+          {/* Password */}
+          <div className="space-y-1 stagger-reveal stagger-delay-5 relative">
+            <label className="text-[10px] font-extrabold text-slate-450 uppercase tracking-wider block">Password</label>
+            <div className="relative mt-1">
+              <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                <Lock size={16} />
+              </div>
+              <input 
+                type="password" 
+                name="password"
+                required
+                value={formData.password}
+                onChange={handleChange}
+                className="block w-full pl-10 pr-4 py-3 border border-slate-200 bg-slate-50 rounded-2xl text-xs focus:outline-none focus:bg-white focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all placeholder:text-slate-400 font-semibold text-slate-800 shadow-inner"
+                placeholder="••••••••"
+              />
+            </div>
+          </div>
+
+          <button 
+            type="submit" 
+            disabled={loading}
+            className="w-full mt-6 bg-[#F08080] hover:bg-[#F08080]/90 text-white font-bold py-3.5 rounded-2xl transition-all shadow-md shadow-[#F08080]/25 disabled:opacity-70 cursor-pointer stagger-reveal stagger-delay-6 flex items-center justify-center gap-2 active:scale-[0.98]"
+          >
+            {loading ? (
+              <>
+                <Loader2 size={16} className="animate-spin" />
+                <span>Creating account...</span>
+              </>
+            ) : (
+              <>
+                <span>Sign Up</span>
+                <ArrowRight size={16} />
+              </>
+            )}
+          </button>
+        </form>
+
+        <div className="text-center text-xs font-semibold text-slate-400 stagger-reveal stagger-delay-7 pt-4">
+          Already have an account?{" "}
+          <Link href="/login" className="text-[#F08080] font-extrabold hover:underline">
+            Log in
+          </Link>
+        </div>
       </div>
-    </div>
+    </BookOpenWrapper>
   );
 }

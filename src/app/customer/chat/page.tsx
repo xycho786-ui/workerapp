@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, Suspense } from 'react';
 import Image from 'next/image';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { useDebounce } from "@/hooks/useDebounce";
+import Link from 'next/link';
 import { 
   Send, 
   User, 
@@ -18,6 +19,7 @@ import {
 import { createClient } from '@/utils/supabase/client';
 import ActiveChatRoom from '@/components/ActiveChatRoom';
 import { useLanguage } from "@/context/LanguageContext";
+import CustomerSidebarDrawer from "@/components/CustomerSidebarDrawer";
 
 type BotMessage = {
   id: string;
@@ -361,7 +363,10 @@ function CustomerChatContent() {
       {/* Header */}
       <div className="bg-white px-5 pt-12 pb-4 shadow-[0_2px_8px_rgba(0,0,0,0.02)] sticky top-0 z-40 border-b border-[#F0F0F0]">
         <div className="flex justify-between items-center mb-4">
-          <h1 className="text-lg font-black text-[#1A2340] tracking-tight">{t("chatPage.messages")}</h1>
+          <div className="flex items-center gap-2">
+            <CustomerSidebarDrawer />
+            <h1 className="text-lg font-black text-[#1A2340] tracking-tight">{t("chatPage.messages")}</h1>
+          </div>
           <span className="text-xs font-bold bg-[#FFF5F5] text-[#E8514A] px-2.5 py-1 rounded-full border border-[#E8514A]/10">
             Inbox
           </span>

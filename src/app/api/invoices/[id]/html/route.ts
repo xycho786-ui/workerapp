@@ -23,8 +23,8 @@ export async function GET(
     }
 
     const dbUser = await prisma.user.findUnique({
-      where: { email: user.email },
-      select: { id: true },
+      where: { id: user.id },
+      select: { id: true, role: true },
     });
 
     if (!dbUser) {
@@ -36,7 +36,16 @@ export async function GET(
       select: {
         htmlContent: true,
         invoiceNumber: true,
-        payment: { select: { customerId: true } },
+        payment: {
+          select: {
+            customerId: true,
+            worker: {
+              select: {
+                userId: true,
+              },
+            },
+          },
+        },
       },
     });
 
@@ -44,8 +53,13 @@ export async function GET(
       return new Response("Invoice not found", { status: 404 });
     }
 
-    // Ownership check
-    if (invoice.payment.customerId !== dbUser.id) {
+    // ── Ownership / Authorization check ───────────────────────────────────────
+    // Ensure the invoice belongs to the customer, the worker, or the user is an admin.
+    const isCustomer = invoice.payment.customerId === dbUser.id;
+    const isWorker = invoice.payment.worker?.userId === dbUser.id;
+    const isAdmin = dbUser.role === "ADMIN";
+
+    if (!isCustomer && !isWorker && !isAdmin) {
       return new Response("Forbidden", { status: 403 });
     }
 

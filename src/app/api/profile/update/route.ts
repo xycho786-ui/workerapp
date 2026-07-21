@@ -62,7 +62,7 @@ export async function POST(request: Request) {
 
     // Update User
     const updatedUser = await prisma.user.update({
-      where: { email: user.email },
+      where: { id: user.id },
       data: userData,
       include: {
         workerProfile: true,

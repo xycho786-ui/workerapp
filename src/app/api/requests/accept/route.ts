@@ -20,7 +20,7 @@ export async function POST(request: Request) {
 
     // Find the worker profile
     const dbUser = await prisma.user.findUnique({
-      where: { email: user.email },
+      where: { id: user.id },
       include: { workerProfile: true }
     });
 

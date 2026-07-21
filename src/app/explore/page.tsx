@@ -3,23 +3,25 @@ import Image from "next/image";
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 
-export default async function ExplorePage() {
-  // Fetch real categories from the database
-  const categories = await prisma.category.findMany({
-    include: {
-      _count: {
-        select: { workers: true }
-      }
-    }
-  });
+export const dynamic = "force-dynamic";
 
-  // Fetch top workers
-  const topWorkers = await prisma.workerProfile.findMany({
-    where: { rating: { gt: 0 } },
-    include: { user: true, category: true },
-    orderBy: { rating: 'desc' },
-    take: 10
-  });
+export default async function ExplorePage() {
+  // Fetch real categories and top workers in parallel
+  const [categories, topWorkers] = await Promise.all([
+    prisma.category.findMany({
+      include: {
+        _count: {
+          select: { workers: true }
+        }
+      }
+    }),
+    prisma.workerProfile.findMany({
+      where: { rating: { gt: 0 } },
+      include: { user: true, category: true },
+      orderBy: { rating: 'desc' },
+      take: 10
+    })
+  ]);
 
   return (
     <div className="flex flex-col h-full bg-gray-50/50">
