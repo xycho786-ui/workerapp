@@ -2,7 +2,7 @@ import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 
 const getSupabaseUrl = () => {
-  let url = process.env.NEXT_PUBLIC_SUPABASE_URL || "http://localhost:3002/api/supabase-mock";
+  let url = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co";
   if (url.includes("/api/supabase-mock")) {
     const port = process.env.PORT || "3002";
     return `http://localhost:${port}/api/supabase-mock`;
@@ -11,14 +11,17 @@ const getSupabaseUrl = () => {
 };
 
 const supabaseUrl = getSupabaseUrl();
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+const supabaseKey =
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
+  process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.placeholder";
 
 export const createClient = async () => {
   const cookieStore = await cookies();
   
   const client = createServerClient(
     supabaseUrl,
-    supabaseKey!,
+    supabaseKey,
     {
       cookies: {
         getAll() {

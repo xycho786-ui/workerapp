@@ -1,18 +1,22 @@
 import { createBrowserClient } from "@supabase/ssr";
 
 const getSupabaseUrl = () => {
-  if (typeof window !== "undefined" && process.env.NEXT_PUBLIC_SUPABASE_URL?.includes("/api/supabase-mock")) {
+  let url = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co";
+  if (typeof window !== "undefined" && url.includes("/api/supabase-mock")) {
     return `${window.location.origin}/api/supabase-mock`;
   }
-  return process.env.NEXT_PUBLIC_SUPABASE_URL;
+  return url;
 };
 
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+const supabaseKey =
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
+  process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.placeholder";
 
 export const createClient = () =>
   createBrowserClient(
-    getSupabaseUrl()!,
-    supabaseKey!,
+    getSupabaseUrl(),
+    supabaseKey,
     {
       global: {
         fetch: async (url, options) => {
@@ -61,8 +65,6 @@ export const createClient = () =>
             return response;
           } catch (error) {
             console.warn("Supabase network request failed:", error);
-            // Return a 502 response to prevent unhandled promise rejections 
-            // that cause the Next.js error overlay to pop up for network failures.
             return new Response(JSON.stringify({ error: "Network error" }), {
               status: 502,
               headers: { "Content-Type": "application/json" }
