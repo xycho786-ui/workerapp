@@ -1,9 +1,12 @@
 import OpenAI from "openai";
 
-// Using the OpenAI API key from environment variables
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+export const dynamic = 'force-dynamic';
+
+const getOpenAIClient = () => {
+  return new OpenAI({
+    apiKey: process.env.OPENAI_API_KEY || "dummy-key-for-build",
+  });
+};
 
 const SYSTEM_PROMPT = `You are a conversational AI assistant for a service booking application. Your role is to manage the chatbot interaction when a service job has been accepted and a worker is en route.
 
@@ -29,23 +32,23 @@ const SYSTEM_PROMPT = `You are a conversational AI assistant for a service booki
 
 export async function POST(req: Request) {
   try {
+    if (!process.env.OPENAI_API_KEY) {
+      return Response.json({ error: "OPENAI_API_KEY is not configured on the server." }, { status: 500 });
+    }
+
+    const openai = getOpenAIClient();
     const { messages } = await req.json();
 
-    // The provided API snippet takes a single 'input' string.
-    // We combine the system prompt and conversation history into a single string.
     const conversationHistory = messages.map((m: any) => `${m.role.toUpperCase()}: ${m.content}`).join('\n\n');
     const inputString = `${SYSTEM_PROMPT}\n\n=== CONVERSATION HISTORY ===\n${conversationHistory}\n\nASSISTANT:`;
 
-    // Using the exact syntax provided
     const response = await openai.responses.create({
       model: "gpt-5.4-mini",
       input: inputString,
       store: true,
     });
 
-    // Formatting the response back to the frontend based on the user snippet's "result.output_text"
-    // (Corrected the typo from 'output_ text' to 'output_text')
-    return Response.json({ message: { content: response.output_text || response.output_text || "No response generated." } });
+    return Response.json({ message: { content: response.output_text || "No response generated." } });
   } catch (error: any) {
     console.error("Chat API Error:", error);
     return Response.json({ error: error.message || 'Internal Server Error' }, { status: 500 });

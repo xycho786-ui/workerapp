@@ -3,6 +3,8 @@ import { prisma } from '@/lib/prisma';
 import { createClient } from '@/utils/supabase/server';
 import { db as firebaseDb, messaging } from '@/lib/firebaseAdmin';
 
+export const dynamic = 'force-dynamic';
+
 const DEFAULT_MESSAGE_LIMIT = 50;
 const MAX_MESSAGE_LIMIT = 100;
 const FETCH_WINDOW_MULTIPLIER = 4;
