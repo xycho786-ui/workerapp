@@ -17,33 +17,29 @@ export default async function CustomerExplorePage(props: {
   const initialTab = searchParams.tab || "freelancers";
   const initialSearch = searchParams.search || "";
 
-  // 1. Fetch freelancers
-  const freelancers = await prisma.workerProfile.findMany({
-    where: {
-      userType: "freelancer"
-    },
-    include: {
-      user: true
-    },
-    orderBy: { rating: 'desc' }
-  });
-
-  // 2. Fetch products
-  const products = await prisma.product.findMany({
-    orderBy: { createdAt: 'desc' }
-  });
-
-  // 3. Fetch cart items
-  const cartItems = await prisma.cartItem.findMany({
-    where: { customerId: user.id },
-    include: { product: true }
-  });
-
-  // 4. Fetch wishlist items
-  const wishlistItems = await prisma.wishlistItem.findMany({
-    where: { customerId: user.id },
-    select: { productId: true }
-  });
+  // Fetch freelancers, products, cart items, and wishlist items in parallel
+  const [freelancers, products, cartItems, wishlistItems] = await Promise.all([
+    prisma.workerProfile.findMany({
+      where: {
+        userType: "freelancer"
+      },
+      include: {
+        user: true
+      },
+      orderBy: { rating: 'desc' }
+    }),
+    prisma.product.findMany({
+      orderBy: { createdAt: 'desc' }
+    }),
+    prisma.cartItem.findMany({
+      where: { customerId: user.id },
+      include: { product: true }
+    }),
+    prisma.wishlistItem.findMany({
+      where: { customerId: user.id },
+      select: { productId: true }
+    })
+  ]);
 
   return (
     <div className="flex flex-col h-full bg-[#F5F5F7]">

@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft, Camera, Mic, Paperclip, Banknote, Square, Trash2, Play, CircleStop, Loader2, Image as ImageIcon, X, MapPin } from "lucide-react";
 import Link from "next/link";
 import Portal from "@/components/Portal";
+import CustomerSidebarDrawer from "@/components/CustomerSidebarDrawer";
 
 const QUICK_SELECTIONS: Record<string, string[]> = {
   Plumbing: ["Leaking Tap", "Blocked Toilet", "No Hot Water", "Burst Pipe", "Low Water Pressure", "Radiator Issue"],
@@ -53,7 +54,7 @@ function RequestFormContent() {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [location, setLocation] = useState("Anna Nagar, Chennai");
-  const [date, setDate] = useState("");
+  const [date, setDate] = useState(() => new Date().toISOString().split('T')[0]);
   const [time, setTime] = useState("10:00");
   const [budget, setBudget] = useState("1500");
   const [priority, setPriority] = useState("NORMAL"); // NORMAL, URGENT, IMMEDIATE
@@ -64,72 +65,20 @@ function RequestFormContent() {
 
   // Audio Recording State
   const [isRecording, setIsRecording] = useState(false);
+  const [recordingTime, setRecordingTime] = useState(0);
   const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
+  const [isPlayingAudio, setIsPlayingAudio] = useState(false);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const audioPlayerRef = useRef<HTMLAudioElement | null>(null);
 
   // File Upload State
   const [files, setFiles] = useState<File[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const [showCameraOptions, setShowCameraOptions] = useState(false);
-
-  useEffect(() => {
-    if (typeof window !== "undefined" && navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          setCoords({
-            latitude: position.coords.latitude,
-            longitude: position.coords.longitude,
-          });
-        },
-        (err) => {
-          console.warn("Geolocation access denied or unavailable", err);
-        }
-      );
-    }
-  }, []);
-
-  const startRecording = async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mediaRecorder = new MediaRecorder(stream);
-      mediaRecorderRef.current = mediaRecorder;
-      chunksRef.current = [];
-
-      mediaRecorder.ondataavailable = (event) => {
-        if (event.data.size > 0) {
-          chunksRef.current.push(event.data);
-        }
-      };
-
-      mediaRecorder.onstop = () => {
-        const blob = new Blob(chunksRef.current, { type: "audio/webm" });
-        setAudioBlob(blob);
-        setAudioUrl(URL.createObjectURL(blob));
-        stream.getTracks().forEach((track) => track.stop());
-      };
-
-      mediaRecorder.start();
-      setIsRecording(true);
-    } catch (err) {
-      console.error("Microphone access denied", err);
-      alert("Microphone access is required to record voice notes.");
-    }
-  };
-
-  const stopRecording = () => {
-    if (mediaRecorderRef.current && isRecording) {
-      mediaRecorderRef.current.stop();
-      setIsRecording(false);
-    }
-  };
-
-  const deleteRecording = () => {
-    setAudioBlob(null);
-    setAudioUrl(null);
-  };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
@@ -142,12 +91,120 @@ function RequestFormContent() {
     setFiles((prev) => prev.filter((_, i) => i !== index));
   };
 
+  // Helper to resolve supported audio MIME type across all browsers
+  const getSupportedAudioMimeType = () => {
+    if (typeof MediaRecorder === 'undefined') return '';
+    const types = [
+      'audio/webm;codecs=opus',
+      'audio/webm',
+      'audio/mp4',
+      'audio/ogg;codecs=opus',
+      'audio/aac'
+    ];
+    for (const type of types) {
+      if (MediaRecorder.isTypeSupported(type)) return type;
+    }
+    return '';
+  };
+
+  const startRecording = async () => {
+    try {
+      setError("");
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      chunksRef.current = [];
+
+      const mimeType = getSupportedAudioMimeType();
+      const options = mimeType ? { mimeType } : undefined;
+      const mediaRecorder = new MediaRecorder(stream, options);
+      mediaRecorderRef.current = mediaRecorder;
+
+      mediaRecorder.ondataavailable = (event) => {
+        if (event.data && event.data.size > 0) {
+          chunksRef.current.push(event.data);
+        }
+      };
+
+      mediaRecorder.onstop = () => {
+        const finalType = mimeType || mediaRecorder.mimeType || 'audio/webm';
+        const blob = new Blob(chunksRef.current, { type: finalType });
+        if (blob.size > 0) {
+          setAudioBlob(blob);
+          setAudioUrl(URL.createObjectURL(blob));
+        } else {
+          setError("Recorded audio was empty. Please check microphone access.");
+        }
+        stream.getTracks().forEach((track) => track.stop());
+      };
+
+      mediaRecorder.start(200); // collect data in 200ms chunks
+      setIsRecording(true);
+      setRecordingTime(0);
+
+      if (timerRef.current) clearInterval(timerRef.current);
+      timerRef.current = setInterval(() => {
+        setRecordingTime((prev) => prev + 1);
+      }, 1000);
+    } catch (err: any) {
+      console.error("Microphone access error:", err);
+      setError("Microphone permission denied or unavailable on your device.");
+    }
+  };
+
+  const stopRecording = () => {
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
+      mediaRecorderRef.current.stop();
+    }
+    setIsRecording(false);
+  };
+
+  const toggleRecording = () => {
+    if (isRecording) {
+      stopRecording();
+    } else {
+      startRecording();
+    }
+  };
+
+  const deleteRecording = () => {
+    if (audioUrl) {
+      URL.revokeObjectURL(audioUrl);
+    }
+    setAudioBlob(null);
+    setAudioUrl(null);
+    setRecordingTime(0);
+    setIsPlayingAudio(false);
+  };
+
+  const togglePlayAudio = () => {
+    if (!audioUrl) return;
+    if (!audioPlayerRef.current || audioPlayerRef.current.src !== audioUrl) {
+      const audio = new Audio(audioUrl);
+      audioPlayerRef.current = audio;
+      audio.onended = () => setIsPlayingAudio(false);
+      audio.onerror = () => setIsPlayingAudio(false);
+    }
+    if (isPlayingAudio) {
+      audioPlayerRef.current.pause();
+      setIsPlayingAudio(false);
+    } else {
+      audioPlayerRef.current.play().then(() => {
+        setIsPlayingAudio(true);
+      }).catch((e) => {
+        console.warn("Audio playback error:", e);
+        setIsPlayingAudio(false);
+      });
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!title.trim() || !description.trim() || !date) {
-      setError("Please fill out all fields.");
-      return;
-    }
+    const finalTitle = title.trim() || `${category} Service Request`;
+    const finalDescription = description.trim() || `${category} service requested by customer.`;
+    const finalDate = date || new Date().toISOString().split('T')[0];
 
     setIsSubmitting(true);
     setError("");
@@ -156,7 +213,7 @@ function RequestFormContent() {
       const formData = new FormData();
       formData.append("category", category);
       
-      const combinedDescription = `Job Title: ${title}\nDescription: ${description}\nLocation: ${location}\nDate: ${date}\nTime: ${time}\nPriority: ${priority}`;
+      const combinedDescription = `Job Title: ${finalTitle}\nDescription: ${finalDescription}\nLocation: ${location}\nDate: ${finalDate}\nTime: ${time}\nPriority: ${priority}`;
       formData.append("description", combinedDescription);
       
       if (budget) formData.append("budget", budget);
@@ -180,14 +237,14 @@ function RequestFormContent() {
       });
 
       if (!res.ok) {
-        throw new Error("Failed to submit request");
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.message || errorData.error || "Failed to submit request");
       }
 
       setSuccess(true);
       setTimeout(() => {
-        // Redirect directly to workers listing page for that category
         router.push(`/customer/services?category=${encodeURIComponent(category)}`);
-      }, 2000);
+      }, 1500);
       
     } catch (err: any) {
       setError(err.message || "Something went wrong.");
@@ -214,11 +271,12 @@ function RequestFormContent() {
   return (
     <div className="flex flex-col min-h-screen bg-[#F8F9FC] font-sans pb-8">
       {/* Header */}
-      <header className="sticky top-0 z-30 bg-white px-5 py-4 border-b border-slate-100 flex items-center gap-4 shadow-[0_2px_15px_-3px_rgba(0,0,0,0.02)]">
-        <button onClick={() => router.back()} className="p-2 -ml-2 rounded-xl hover:bg-slate-50 transition-colors">
+      <header className="sticky top-0 z-30 bg-white px-5 py-4 border-b border-slate-100 flex items-center gap-2 shadow-[0_2px_15px_-3px_rgba(0,0,0,0.02)]">
+        <button onClick={() => router.back()} className="p-2 -ml-2 rounded-xl hover:bg-slate-50 transition-colors cursor-pointer border-none bg-transparent" title="Go Back">
           <ArrowLeft size={20} className="text-slate-800 stroke-[2.5]" />
         </button>
-        <h1 className="text-base font-black text-slate-850">Create Job</h1>
+        <CustomerSidebarDrawer />
+        <h1 className="text-base font-black text-slate-850 ml-1">Create Job</h1>
       </header>
 
       {/* Main Form */}
@@ -267,34 +325,53 @@ function RequestFormContent() {
           <label className="block text-[10px] font-black text-slate-400 uppercase tracking-wider mb-3">Add Audio Description (Optional)</label>
           
           {!audioUrl ? (
-            <button 
-              type="button"
-              onMouseDown={startRecording}
-              onMouseUp={stopRecording}
-              onTouchStart={startRecording}
-              onTouchEnd={stopRecording}
-              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border border-dashed transition-all ${
-                isRecording 
-                  ? 'border-red-400 bg-red-50 text-red-600 font-extrabold' 
-                  : 'border-slate-200 hover:border-slate-300 bg-white hover:bg-slate-50 text-emerald-600 font-extrabold shadow-sm'
-              } text-[11px]`}
-            >
-              <Mic size={14} className={isRecording ? 'animate-pulse' : ''} />
-              <span>{isRecording ? 'Recording...' : 'Start Recording'}</span>
-            </button>
+            <div className="flex items-center gap-3">
+              <button 
+                type="button"
+                onClick={toggleRecording}
+                className={`flex items-center gap-2 px-4 py-3 rounded-2xl border transition-all cursor-pointer ${
+                  isRecording 
+                    ? 'border-rose-500 bg-rose-50 text-rose-600 font-extrabold shadow-md shadow-rose-500/10' 
+                    : 'border-slate-200 hover:border-slate-300 bg-white hover:bg-slate-50 text-emerald-600 font-extrabold shadow-sm'
+                } text-xs`}
+              >
+                <div className={`w-3 h-3 rounded-full flex items-center justify-center ${isRecording ? 'bg-rose-500 animate-ping' : 'bg-emerald-500'}`} />
+                <Mic size={16} className={isRecording ? 'animate-pulse text-rose-600' : 'text-emerald-600'} />
+                <span>{isRecording ? 'Stop Recording' : 'Record Voice Note'}</span>
+              </button>
+
+              {isRecording && (
+                <div className="flex items-center gap-2 px-3 py-2 bg-rose-50 border border-rose-200/80 rounded-2xl text-rose-600 text-xs font-black animate-pulse">
+                  <span>REC</span>
+                  <span>{Math.floor(recordingTime / 60).toString().padStart(2, '0')}:{(recordingTime % 60).toString().padStart(2, '0')}</span>
+                </div>
+              )}
+            </div>
           ) : (
-            <div className="flex items-center justify-between bg-slate-50 border border-slate-100 rounded-xl p-3">
-              <div className="flex items-center gap-2">
-                <button type="button" onClick={() => {
-                  const audio = new Audio(audioUrl);
-                  audio.play().catch(e => console.warn(e));
-                }} className="p-2 bg-emerald-500 text-white rounded-full">
-                  <Play size={12} className="fill-white" />
+            <div className="flex items-center justify-between bg-slate-50 border border-slate-200/80 rounded-2xl p-3.5 shadow-sm">
+              <div className="flex items-center gap-3">
+                <button 
+                  type="button" 
+                  onClick={togglePlayAudio}
+                  className="w-9 h-9 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl flex items-center justify-center transition-transform active:scale-95 shadow-sm cursor-pointer"
+                  title={isPlayingAudio ? "Pause Voice Note" : "Play Voice Note"}
+                >
+                  {isPlayingAudio ? <Square size={14} className="fill-white" /> : <Play size={14} className="fill-white ml-0.5" />}
                 </button>
-                <span className="text-[10px] font-extrabold text-slate-500">Audio Note</span>
+                <div className="flex flex-col">
+                  <span className="text-xs font-extrabold text-slate-800">Voice Note Recorded</span>
+                  <span className="text-[10px] font-bold text-slate-400">
+                    {Math.floor(recordingTime / 60).toString().padStart(2, '0')}:{(recordingTime % 60).toString().padStart(2, '0')} • Ready to attach
+                  </span>
+                </div>
               </div>
-              <button type="button" onClick={deleteRecording} className="text-red-500 p-1.5 hover:bg-red-50 rounded-lg">
-                <Trash2 size={14} />
+              <button 
+                type="button" 
+                onClick={deleteRecording} 
+                className="p-2 text-rose-500 hover:bg-rose-50 rounded-xl transition-colors cursor-pointer"
+                title="Delete recording"
+              >
+                <Trash2 size={16} />
               </button>
             </div>
           )}

@@ -1,14 +1,23 @@
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const getSupabaseUrl = () => {
+  let url = process.env.NEXT_PUBLIC_SUPABASE_URL || "http://localhost:3002/api/supabase-mock";
+  if (url.includes("/api/supabase-mock")) {
+    const port = process.env.PORT || "3002";
+    return `http://localhost:${port}/api/supabase-mock`;
+  }
+  return url;
+};
+
+const supabaseUrl = getSupabaseUrl();
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
 export const createClient = async () => {
   const cookieStore = await cookies();
   
   const client = createServerClient(
-    supabaseUrl!,
+    supabaseUrl,
     supabaseKey!,
     {
       cookies: {
@@ -34,14 +43,26 @@ export const createClient = async () => {
   client.auth.getUser = async (jwt?: string) => {
     try {
       const allCookies = cookieStore.getAll();
-      const authCookie = allCookies.find(c => c.name.startsWith('sb-') && c.name.endsWith('-auth-token'));
-      if (authCookie && authCookie.value) {
-        const parsed = JSON.parse(authCookie.value);
+      const authCookies = allCookies
+        .filter(c => c.name.startsWith('sb-') && c.name.includes('-auth-token'))
+        .sort((a, b) => a.name.localeCompare(b.name));
+      if (authCookies.length > 0) {
+        let rawVal = authCookies.map(c => c.value).join('');
+        if (rawVal.startsWith('base64-')) {
+          try {
+            rawVal = Buffer.from(rawVal.slice(7), 'base64').toString('utf8');
+          } catch (e) {
+            // fallback if decode fails
+          }
+        }
+        const parsed = JSON.parse(rawVal);
         let accessToken = "";
         if (Array.isArray(parsed)) {
           accessToken = parsed[0];
         } else if (parsed && typeof parsed === 'object') {
           accessToken = parsed.access_token;
+        } else if (typeof parsed === 'string') {
+          accessToken = parsed;
         }
 
         if (accessToken) {
@@ -61,9 +82,10 @@ export const createClient = async () => {
                     email: payload.email,
                     role: 'authenticated',
                     aud: 'authenticated',
+                    created_at: new Date().toISOString(),
                     user_metadata: payload.user_metadata || {},
                     app_metadata: payload.app_metadata || { provider: 'email', providers: ['email'] },
-                  }
+                  } as any
                 },
                 error: null
               };

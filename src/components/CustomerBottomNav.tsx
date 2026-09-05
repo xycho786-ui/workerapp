@@ -43,7 +43,11 @@ export default function CustomerBottomNav() {
       }
     }
     fetchUnreadCounts();
-    const interval = setInterval(fetchUnreadCounts, 20000);
+    const interval = setInterval(() => {
+      if (!document.hidden) {
+        fetchUnreadCounts();
+      }
+    }, 20000);
     return () => clearInterval(interval);
   }, []);
 

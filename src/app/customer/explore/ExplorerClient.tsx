@@ -8,6 +8,8 @@ import {
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
+import CustomerSidebarDrawer from "@/components/CustomerSidebarDrawer";
+import ProductMedia from "@/components/ProductMedia";
 
 interface ExplorerClientProps {
   initialFreelancers: any[];
@@ -340,12 +342,14 @@ export default function ExplorerClient({
       {/* 1. Header */}
       <header className="bg-white px-4 py-4 sticky top-0 z-10 border-b border-slate-100 flex items-center justify-between shadow-[0_2px_15px_-3px_rgba(0,0,0,0.02)]">
         <div className="flex items-center gap-3">
-          <Link 
-            href="/customer/dashboard" 
-            className="p-2 -ml-2 text-slate-500 hover:text-primary hover:bg-slate-100 rounded-xl transition-all"
+          <button 
+            onClick={() => router.back()} 
+            className="p-2 -ml-2 text-slate-500 hover:text-primary hover:bg-slate-100 rounded-xl transition-all cursor-pointer border-none bg-transparent"
+            title="Go Back"
           >
             <ArrowLeft size={20} className="stroke-[2.5]" />
-          </Link>
+          </button>
+          <CustomerSidebarDrawer />
           <div>
             <h1 className="text-base font-black text-slate-800">Explorer</h1>
             <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Freelancers & Products</p>
@@ -579,8 +583,8 @@ export default function ExplorerClient({
 
                       {/* Product details page link */}
                       <Link href={`/customer/explore/products/${prod.id}`} className="block">
-                        <div className="aspect-square rounded-2xl bg-amber-50/50 border border-amber-100 flex items-center justify-center text-4xl shadow-inner relative overflow-hidden group-hover:scale-[1.02] transition-transform duration-300">
-                          {prod.image || "📦"}
+                        <div className="aspect-square rounded-2xl bg-amber-50/50 border border-amber-100 flex items-center justify-center shadow-inner relative overflow-hidden group-hover:scale-[1.02] transition-transform duration-300">
+                          <ProductMedia src={prod.image} alt={prod.name} />
                         </div>
                       </Link>
 
@@ -687,8 +691,8 @@ export default function ExplorerClient({
                     className="bg-white rounded-2xl p-3.5 border border-slate-100 shadow-sm flex items-center justify-between gap-4"
                   >
                     <div className="flex items-center gap-3 min-w-0">
-                      <div className="w-12 h-12 rounded-xl bg-amber-50 border border-amber-100 flex items-center justify-center text-2xl shadow-inner flex-shrink-0">
-                        {item.product.image || "📦"}
+                      <div className="w-12 h-12 rounded-xl bg-amber-50 border border-amber-100 flex items-center justify-center shadow-inner flex-shrink-0 overflow-hidden">
+                        <ProductMedia src={item.product.image} alt={item.product.name} />
                       </div>
                       <div className="min-w-0">
                         <h4 className="font-extrabold text-slate-800 text-[13px] leading-tight truncate">{item.product.name}</h4>

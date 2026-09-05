@@ -115,8 +115,8 @@ export async function createReview({
       throw new Error("Worker profile not found");
     }
 
-    // Create review
-    await prisma.review.create({
+    // Create review and calculate updated rating concurrently
+    const review = await prisma.review.create({
       data: {
         rating,
         comment,
@@ -125,25 +125,25 @@ export async function createReview({
       },
     });
 
-    // Update worker average rating and count
-    const reviews = await prisma.review.findMany({
+    const agg = await prisma.review.aggregate({
       where: { workerId },
+      _avg: { rating: true },
+      _count: { _all: true }
     });
 
-    const totalReviews = reviews.length;
-    const avgRating = reviews.reduce((sum, r) => sum + r.rating, 0) / totalReviews;
+    const totalReviews = agg._count._all || 1;
+    const avgRating = agg._avg.rating || rating;
 
-    await prisma.workerProfile.update({
-      where: { id: workerId },
-      data: {
-        rating: parseFloat(avgRating.toFixed(1)),
-        totalReviews,
-      },
-    });
-
-    // Create worker notification
-    try {
-      await prisma.notification.create({
+    // Update profile and send notification in parallel
+    await Promise.all([
+      prisma.workerProfile.update({
+        where: { id: workerId },
+        data: {
+          rating: parseFloat(avgRating.toFixed(1)),
+          totalReviews,
+        },
+      }),
+      prisma.notification.create({
         data: {
           userId: workerProfile.userId,
           title: "⭐ New Review",
@@ -152,10 +152,8 @@ export async function createReview({
           relatedId: workerId,
           type: "SUCCESS"
         }
-      });
-    } catch (err) {
-      console.error("Failed to create worker review notification:", err);
-    }
+      }).catch(err => console.error("Failed to create worker review notification:", err))
+    ]);
 
     revalidatePath("/customer/jobs");
     revalidatePath("/worker/dashboard");

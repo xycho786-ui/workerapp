@@ -42,6 +42,8 @@ export async function POST(request: Request) {
       updateData.workerAcceptedAt = new Date();
       updateData.chatEnabled = true;
       updateData.contactShared = true;
+    } else if (status === 'COMPLETED' || status === 'CANCELLED' || status === 'REJECTED') {
+      updateData.chatEnabled = false;
     }
 
     const updatedBooking = await prisma.booking.update({

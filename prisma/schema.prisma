@@ -144,7 +144,9 @@ model Booking {
   payment             Payment?
 
   @@index([customerId])
+  @@index([customerId, updatedAt])
   @@index([workerId])
+  @@index([workerId, updatedAt])
   @@index([status])
 }
 
@@ -170,6 +172,7 @@ model Conversation {
   messages   Message[]
 
   @@unique([customerId, workerId])
+  @@index([updatedAt])
 }
 
 model Message {
@@ -183,6 +186,8 @@ model Message {
   sender         User         @relation("MessagesSent", fields: [senderId], references: [id])
 
   @@index([conversationId])
+  @@index([conversationId, createdAt])
+  @@index([conversationId, isRead, senderId])
   @@index([senderId])
   @@index([isRead])
 }

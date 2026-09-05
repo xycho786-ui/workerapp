@@ -19,24 +19,24 @@ export default async function CustomerJobsPage() {
     redirect("/login");
   }
 
-  // Fetch bookings for this customer
-  const bookings = await prisma.booking.findMany({
-    where: { customerId: dbUser.id },
-    include: {
-      worker: {
-        include: {
-          user: true,
+  // Fetch bookings and service requests in parallel
+  const [bookings, requests] = await Promise.all([
+    prisma.booking.findMany({
+      where: { customerId: dbUser.id },
+      include: {
+        worker: {
+          include: {
+            user: true,
+          },
         },
       },
-    },
-    orderBy: { createdAt: "desc" },
-  });
-
-  // Fetch service requests for this customer
-  const requests = await prisma.serviceRequest.findMany({
-    where: { customerId: dbUser.id },
-    orderBy: { createdAt: "desc" },
-  });
+      orderBy: { createdAt: "desc" },
+    }),
+    prisma.serviceRequest.findMany({
+      where: { customerId: dbUser.id },
+      orderBy: { createdAt: "desc" },
+    }),
+  ]);
 
   return (
     <CustomerJobsClient

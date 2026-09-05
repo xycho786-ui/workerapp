@@ -25,8 +25,31 @@ if (process.env.NODE_ENV !== 'production') {
 }
 const CACHE_TTL_MS = 10000; // Cache user metadata for 10 seconds to cover batch page-load requests
 
+function parseUserMetadata(meta: any): Record<string, any> {
+  let result = meta;
+  while (typeof result === 'string') {
+    try {
+      result = JSON.parse(result);
+    } catch (e) {
+      result = {};
+      break;
+    }
+  }
+  if (!result || typeof result !== 'object') {
+    return {};
+  }
+  const clean: Record<string, any> = {};
+  for (const [key, val] of Object.entries(result)) {
+    if (isNaN(Number(key))) {
+      clean[key] = val;
+    }
+  }
+  return clean;
+}
+
 // Helper to generate a dummy JWT token for a user
-function generateTokens(userId: string, email: string) {
+function generateTokens(userId: string, email: string, userMetadata?: any) {
+  const cleanMeta = parseUserMetadata(userMetadata);
   const payload = {
     iss: 'supabase',
     sub: userId,
@@ -34,6 +57,7 @@ function generateTokens(userId: string, email: string) {
     exp: Math.floor(Date.now() / 1000) + 3600 * 24 * 7, // 7 days expiration
     role: 'authenticated',
     aud: 'authenticated',
+    user_metadata: cleanMeta,
   };
   const header = { alg: 'HS256', typ: 'JWT' };
   const sHeader = Buffer.from(JSON.stringify(header)).toString('base64url');
@@ -341,6 +365,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ pat
         // Invalidate user cache on fresh login
         userCache.delete(userRecord.id);
 
+        const cleanMeta = parseUserMetadata(userRecord.raw_user_meta_data);
         const user = {
           id: userRecord.id,
           aud: 'authenticated',
@@ -350,12 +375,12 @@ export async function POST(request: Request, { params }: { params: Promise<{ pat
           confirmed_at: userRecord.confirmed_at || new Date().toISOString(),
           last_sign_in_at: new Date().toISOString(),
           app_metadata: userRecord.raw_app_meta_data || { provider: 'email', providers: ['email'] },
-          user_metadata: userRecord.raw_user_meta_data || {},
+          user_metadata: cleanMeta,
           created_at: userRecord.created_at,
           updated_at: userRecord.updated_at,
         };
 
-        const tokens = generateTokens(userRecord.id, userRecord.email);
+        const tokens = generateTokens(userRecord.id, userRecord.email, cleanMeta);
         return NextResponse.json({ ...tokens, user }, { status: 200, headers: CORS_HEADERS });
       }
 
@@ -372,6 +397,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ pat
         }
 
         const userRecord = users[0];
+        const cleanMeta = parseUserMetadata(userRecord.raw_user_meta_data);
         const user = {
           id: userRecord.id,
           aud: 'authenticated',
@@ -381,12 +407,12 @@ export async function POST(request: Request, { params }: { params: Promise<{ pat
           confirmed_at: userRecord.confirmed_at || new Date().toISOString(),
           last_sign_in_at: new Date().toISOString(),
           app_metadata: userRecord.raw_app_meta_data || { provider: 'email', providers: ['email'] },
-          user_metadata: userRecord.raw_user_meta_data || {},
+          user_metadata: cleanMeta,
           created_at: userRecord.created_at,
           updated_at: userRecord.updated_at,
         };
 
-        const tokens = generateTokens(userRecord.id, userRecord.email);
+        const tokens = generateTokens(userRecord.id, userRecord.email, cleanMeta);
         return NextResponse.json({ ...tokens, user }, { status: 200, headers: CORS_HEADERS });
       }
 
@@ -439,6 +465,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ path
       }
 
       const userRecord = users[0];
+      const cleanMeta = parseUserMetadata(userRecord.raw_user_meta_data);
       const user = {
         id: userRecord.id,
         aud: 'authenticated',
@@ -448,7 +475,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ path
         confirmed_at: userRecord.confirmed_at || new Date().toISOString(),
         last_sign_in_at: new Date().toISOString(),
         app_metadata: userRecord.raw_app_meta_data || { provider: 'email', providers: ['email'] },
-        user_metadata: userRecord.raw_user_meta_data || {},
+        user_metadata: cleanMeta,
         created_at: userRecord.created_at,
         updated_at: userRecord.updated_at,
       };
@@ -504,7 +531,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ path
         return NextResponse.json({ error: 'User not found' }, { status: 401, headers: CORS_HEADERS });
       }
 
-      const currentMetadata = users[0].raw_user_meta_data || {};
+      const currentMetadata = parseUserMetadata(users[0].raw_user_meta_data);
       const newMetadata = { ...currentMetadata, ...userMetadataUpdate };
 
       // Update in database
@@ -519,6 +546,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ path
       
       // Invalidate user cache on profile update
       userCache.delete(userId);
+      const cleanMeta = parseUserMetadata(userRecord.raw_user_meta_data);
       const user = {
         id: userRecord.id,
         aud: 'authenticated',
@@ -528,7 +556,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ path
         confirmed_at: userRecord.confirmed_at || new Date().toISOString(),
         last_sign_in_at: new Date().toISOString(),
         app_metadata: userRecord.raw_app_meta_data || { provider: 'email', providers: ['email'] },
-        user_metadata: userRecord.raw_user_meta_data || {},
+        user_metadata: cleanMeta,
         created_at: userRecord.created_at,
         updated_at: userRecord.updated_at,
       };

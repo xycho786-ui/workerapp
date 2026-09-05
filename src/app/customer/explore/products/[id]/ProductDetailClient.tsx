@@ -4,6 +4,7 @@ import { useState } from "react";
 import { ArrowLeft, Star, ShoppingBag, ShoppingCart, Heart, ShieldCheck, MapPin, Store, Check, AlertCircle } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import ProductMedia from "@/components/ProductMedia";
 
 interface ProductDetailClientProps {
   product: any;
@@ -92,9 +93,8 @@ export default function ProductDetailClient({ product }: ProductDetailClientProp
         )}
 
         {/* Product Image Section */}
-        <div className="aspect-[4/3] rounded-3xl bg-amber-50 border border-amber-100/50 flex items-center justify-center text-[80px] shadow-inner relative overflow-hidden">
-          <div className="absolute inset-0 bg-gradient-to-br from-amber-500/5 to-transparent"></div>
-          {product.image || "📦"}
+        <div className="aspect-[4/3] rounded-3xl bg-amber-50 border border-amber-100/50 flex items-center justify-center shadow-inner relative overflow-hidden">
+          <ProductMedia src={product.image} alt={product.name} isDetail={true} />
         </div>
 
         {/* Product Info */}

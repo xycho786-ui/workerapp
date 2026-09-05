@@ -112,10 +112,9 @@ export async function POST(request: Request) {
       console.error("Failed to search and notify matching workers by distance:", workerSearchErr);
     }
 
-    // Handle actual file uploads to Supabase storage (Voice, Images, Videos) outside transaction
+    // Handle file uploads to Supabase storage (Voice, Images, Videos) with fallback
     const mediaRecords: Array<{ id: string; url: string; type: 'IMAGE' | 'VIDEO' | 'AUDIO' }> = [];
     const files = formData.getAll('media');
-    const supabase = await createClient();
 
     for (const file of files) {
       if (file instanceof File && file.size > 0) {
@@ -129,55 +128,60 @@ export async function POST(request: Request) {
         const arrayBuffer = await file.arrayBuffer();
         const buffer = Buffer.from(arrayBuffer);
 
-        const { data: uploadData, error: uploadError } = await supabase.storage
-          .from('service-media')
-          .upload(filePath, buffer, {
-            contentType: file.type,
-            upsert: true
-          });
+        let mediaUrl = "";
+        try {
+          const supabase = await createClient();
+          const { data: uploadData, error: uploadError } = await supabase.storage
+            .from('service-media')
+            .upload(filePath, buffer, {
+              contentType: file.type,
+              upsert: true
+            });
 
-        if (uploadError) {
-          console.error('Failed to upload media to Supabase:', uploadError);
-          throw new Error(`Failed to upload media: ${uploadError.message}`);
+          if (!uploadError) {
+            const { data: urlData } = supabase.storage
+              .from('service-media')
+              .getPublicUrl(filePath);
+            mediaUrl = urlData.publicUrl;
+          } else {
+            console.warn('Supabase storage upload returned error:', uploadError.message);
+          }
+        } catch (storageErr: any) {
+          console.warn('Supabase storage upload failed, using fallback:', storageErr?.message);
         }
 
-        const { data: urlData } = supabase.storage
-          .from('service-media')
-          .getPublicUrl(filePath);
+        // Fallback to data URL if storage upload failed or returned no URL
+        if (!mediaUrl) {
+          mediaUrl = `data:${file.type || 'image/png'};base64,${buffer.toString('base64')}`;
+        }
 
         mediaRecords.push({
           id: mediaId,
-          url: urlData.publicUrl,
+          url: mediaUrl,
           type
         });
       }
     }
 
-    // Create the ServiceRequest and matching media/notifications inside a database transaction
-    await prisma.$transaction(async (tx) => {
-      await tx.serviceRequest.create({
-        data: {
-          id: requestId,
-          customerId,
-          category,
-          description,
-          budget,
-          status: 'OPEN',
-          latitude,
-          longitude,
-          assignedWorkerId,
-        }
-      });
-
-      for (const record of mediaRecords) {
-        await tx.media.create({
-          data: {
+    // Create the ServiceRequest and all media records in a single atomic Prisma call
+    await prisma.serviceRequest.create({
+      data: {
+        id: requestId,
+        customerId,
+        category,
+        description,
+        budget,
+        status: 'OPEN',
+        latitude,
+        longitude,
+        assignedWorkerId,
+        media: {
+          create: mediaRecords.map(record => ({
             id: record.id,
             url: record.url,
-            type: record.type,
-            serviceRequestId: requestId,
-          }
-        });
+            type: record.type
+          }))
+        }
       }
     });
 

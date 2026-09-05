@@ -1,8 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
-import { ArrowLeft, Store, ShoppingBag, Heart, MessageCircle, Send, Bookmark, MapPin, ShieldCheck, HeartOff, Share2, Play } from "lucide-react";
+import { 
+  ArrowLeft, Store, ShoppingBag, Heart, MessageCircle, Send, Bookmark, 
+  MapPin, ShieldCheck, Share2, Play, Plus, Upload, Loader2, CheckCircle2, AlertCircle, Trash2
+} from "lucide-react";
+import ProductMedia from "@/components/ProductMedia";
 
 // Mock Businesses
 const MOCK_STORES = [
@@ -50,40 +54,6 @@ const MOCK_STORES = [
   },
 ];
 
-// Mock Products
-const MOCK_PRODUCTS = [
-  {
-    id: "p1",
-    name: "Fresh Sourdough Boule",
-    store: "Bella Artisan Bakery",
-    price: 6.5,
-    rating: 4.9,
-    stock: 12,
-    imageBg: "bg-amber-100 text-amber-800",
-    emoji: "🍞",
-  },
-  {
-    id: "p2",
-    name: "Monstera Deliciosa (Medium)",
-    store: "GreenThumb Plant Nursery",
-    price: 18.0,
-    rating: 4.8,
-    stock: 5,
-    imageBg: "bg-emerald-100 text-emerald-800",
-    emoji: "🪴",
-  },
-  {
-    id: "p3",
-    name: "Hand-Painted Terrazzo Mug",
-    store: "Aura Handmade Clay & Crafts",
-    price: 12.0,
-    rating: 5.0,
-    stock: 20,
-    imageBg: "bg-rose-100 text-rose-800",
-    emoji: "🥛",
-  },
-];
-
 // Mock Social Commerce Posts
 const MOCK_POSTS = [
   {
@@ -117,6 +87,45 @@ export default function BusinessesModule() {
   const [likedPosts, setLikedPosts] = useState<string[]>([]);
   const [wishlist, setWishlist] = useState<string[]>([]);
 
+  // Real product list state from database
+  const [dbProducts, setDbProducts] = useState<any[]>([]);
+  const [loadingProducts, setLoadingProducts] = useState(false);
+
+  // New product creation form state
+  const [prodName, setProdName] = useState("");
+  const [prodPrice, setProdPrice] = useState("");
+  const [prodCategory, setProdCategory] = useState("General");
+  const [prodStock, setProdStock] = useState("10");
+  const [prodDescription, setProdDescription] = useState("");
+  const [prodSellerName, setProdSellerName] = useState("");
+  const [prodSellerLocation, setProdSellerLocation] = useState("Chennai, TN");
+
+  // Media File Upload State
+  const [mediaFile, setMediaFile] = useState<File | null>(null);
+  const [mediaPreview, setMediaPreview] = useState<string | null>(null);
+  const [isVideoUpload, setIsVideoUpload] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [createMessage, setCreateMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+
+  const fetchProducts = async () => {
+    setLoadingProducts(true);
+    try {
+      const res = await fetch("/api/explore/products");
+      const data = await res.json();
+      if (data.success && Array.isArray(data.products)) {
+        setDbProducts(data.products);
+      }
+    } catch (e) {
+      console.error("Failed to load products:", e);
+    } finally {
+      setLoadingProducts(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchProducts();
+  }, []);
+
   const toggleFollow = (storeId: string) => {
     setFollowedStores((prev) =>
       prev.includes(storeId) ? prev.filter((id) => id !== storeId) : [...prev, storeId]
@@ -135,6 +144,86 @@ export default function BusinessesModule() {
     );
   };
 
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      setMediaFile(file);
+      setIsVideoUpload(file.type.startsWith("video/"));
+      const previewUrl = URL.createObjectURL(file);
+      setMediaPreview(previewUrl);
+    }
+  };
+
+  const handleCreateProduct = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!prodName || !prodPrice) {
+      setCreateMessage({ type: "error", text: "Product name and price are required." });
+      return;
+    }
+
+    setUploading(true);
+    setCreateMessage(null);
+
+    try {
+      let imageUrl: string | null = null;
+
+      // 1. If file is attached, upload file to server via /api/upload
+      if (mediaFile) {
+        const formData = new FormData();
+        formData.append("file", mediaFile);
+        formData.append("folder", isVideoUpload ? "products/videos" : "products/photos");
+
+        const uploadRes = await fetch("/api/upload", {
+          method: "POST",
+          body: formData,
+        });
+
+        const uploadData = await uploadRes.json();
+        if (!uploadRes.ok || !uploadData.success) {
+          throw new Error(uploadData.error || "Failed to upload product media file.");
+        }
+        imageUrl = uploadData.url;
+      }
+
+      // 2. Submit product payload to /api/products/create
+      const createRes = await fetch("/api/products/create", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: prodName,
+          price: parseFloat(prodPrice),
+          category: prodCategory,
+          stock: parseInt(prodStock) || 10,
+          description: prodDescription,
+          image: imageUrl,
+          sellerName: prodSellerName || "Local Artisan Store",
+          sellerLocation: prodSellerLocation,
+        }),
+      });
+
+      const createData = await createRes.json();
+      if (!createRes.ok || createData.error) {
+        throw new Error(createData.error || createData.message || "Failed to create product.");
+      }
+
+      setCreateMessage({ type: "success", text: "Product listed & published successfully!" });
+
+      // Reset form
+      setProdName("");
+      setProdPrice("");
+      setProdDescription("");
+      setMediaFile(null);
+      setMediaPreview(null);
+
+      // Refresh product list
+      fetchProducts();
+    } catch (err: any) {
+      setCreateMessage({ type: "error", text: err.message || "Something went wrong." });
+    } finally {
+      setUploading(false);
+    }
+  };
+
   return (
     <div className="flex flex-col min-h-screen bg-slate-50/50 pb-20">
       
@@ -149,10 +238,7 @@ export default function BusinessesModule() {
         </Link>
         <div className="flex-1">
           <h1 className="font-extrabold text-base text-slate-800">Small Scale Businesses</h1>
-          <p className="text-[10px] text-primary font-bold uppercase tracking-wider">Ecosystem Phase 3</p>
-        </div>
-        <div className="text-[10px] font-extrabold text-primary bg-primary/10 border border-primary/20 px-2.5 py-1 rounded-full uppercase tracking-wide">
-          Placeholder
+          <p className="text-[10px] text-primary font-bold uppercase tracking-wider">Storefront & Marketplace</p>
         </div>
       </header>
 
@@ -167,7 +253,7 @@ export default function BusinessesModule() {
                 ? "Marketplace"
                 : tab === "feed"
                 ? "Social Feed"
-                : "My Store";
+                : "My Store & Add Product";
             return (
               <button
                 key={tab}
@@ -252,49 +338,73 @@ export default function BusinessesModule() {
         {/* TAB 2: PRODUCT MARKETPLACE */}
         {activeTab === "marketplace" && (
           <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-3">
-              {MOCK_PRODUCTS.map((prod) => {
-                const inWishlist = wishlist.includes(prod.id);
-                return (
-                  <div
-                    key={prod.id}
-                    className="bg-white border border-slate-100 rounded-2xl overflow-hidden p-3 shadow-[0_2px_12px_rgba(0,0,0,0.01)] hover:border-primary/20 transition-all duration-200 flex flex-col justify-between gap-3 relative"
-                  >
-                    {/* Wishlist Button */}
-                    <button
-                      onClick={() => toggleWishlist(prod.id)}
-                      className="absolute top-2.5 right-2.5 p-1.5 bg-white/95 rounded-full shadow-sm text-slate-400 hover:text-primary transition-colors z-10"
-                    >
-                      {inWishlist ? (
-                        <Heart className="w-3.5 h-3.5 fill-primary text-primary" />
-                      ) : (
-                        <Heart className="w-3.5 h-3.5" />
-                      )}
-                    </button>
-
-                    {/* Product Image Placeholder */}
-                    <div className={`aspect-square rounded-xl ${prod.imageBg} flex items-center justify-center text-4xl shadow-inner`}>
-                      {prod.emoji}
-                    </div>
-
-                    <div className="space-y-1">
-                      <h5 className="text-[11px] font-black text-slate-800 leading-tight truncate">{prod.name}</h5>
-                      <p className="text-[9px] text-slate-400 font-bold truncate">By {prod.store}</p>
-                    </div>
-
-                    <div className="flex items-center justify-between border-t border-slate-50 pt-2 mt-0.5">
-                      <div>
-                        <span className="text-xs font-black text-primary">${prod.price.toFixed(2)}</span>
-                        <span className="text-[9px] text-slate-400 block font-bold">Qty: {prod.stock}</span>
-                      </div>
-                      <button className="bg-primary/10 hover:bg-primary text-primary hover:text-white transition-colors text-[9px] font-extrabold px-2 py-1 rounded-lg">
-                        Add
-                      </button>
-                    </div>
-                  </div>
-                );
-              })}
+            <div className="flex justify-between items-center">
+              <h3 className="text-xs font-black text-slate-500 uppercase tracking-wider">Live Small Business Goods</h3>
+              <button 
+                onClick={fetchProducts} 
+                className="text-[10px] font-bold text-primary hover:underline"
+              >
+                Refresh List
+              </button>
             </div>
+
+            {loadingProducts ? (
+              <div className="text-center py-12 bg-white rounded-3xl border border-slate-100 flex flex-col items-center justify-center">
+                <Loader2 className="animate-spin text-primary mb-2" size={24} />
+                <p className="text-xs text-slate-400 font-bold">Loading products...</p>
+              </div>
+            ) : dbProducts.length > 0 ? (
+              <div className="grid grid-cols-2 gap-3">
+                {dbProducts.map((prod) => {
+                  const inWishlist = wishlist.includes(prod.id);
+                  return (
+                    <div
+                      key={prod.id}
+                      className="bg-white border border-slate-100 rounded-2xl overflow-hidden p-3 shadow-[0_2px_12px_rgba(0,0,0,0.01)] hover:border-primary/20 transition-all duration-200 flex flex-col justify-between gap-3 relative"
+                    >
+                      {/* Wishlist Button */}
+                      <button
+                        onClick={() => toggleWishlist(prod.id)}
+                        className="absolute top-2.5 right-2.5 p-1.5 bg-white/95 rounded-full shadow-sm text-slate-400 hover:text-primary transition-colors z-10"
+                      >
+                        <Heart className={`w-3.5 h-3.5 ${inWishlist ? "fill-primary text-primary" : ""}`} />
+                      </button>
+
+                      {/* Product Media Display */}
+                      <Link href={`/customer/explore/products/${prod.id}`} className="block">
+                        <div className="aspect-square rounded-xl bg-amber-50/50 border border-amber-100 flex items-center justify-center shadow-inner relative overflow-hidden">
+                          <ProductMedia src={prod.image} alt={prod.name} />
+                        </div>
+                      </Link>
+
+                      <div className="space-y-1">
+                        <Link href={`/customer/explore/products/${prod.id}`}>
+                          <h5 className="text-[11px] font-black text-slate-800 leading-tight truncate hover:text-primary transition-colors">{prod.name}</h5>
+                        </Link>
+                        <p className="text-[9px] text-slate-400 font-bold truncate">By {prod.sellerName || "Local Business"}</p>
+                      </div>
+
+                      <div className="flex items-center justify-between border-t border-slate-50 pt-2 mt-0.5">
+                        <div>
+                          <span className="text-xs font-black text-primary">₹{prod.price}</span>
+                          <span className="text-[9px] text-slate-400 block font-bold">Qty: {prod.stock}</span>
+                        </div>
+                        <Link 
+                          href={`/customer/explore/products/${prod.id}`}
+                          className="bg-primary/10 hover:bg-primary text-primary hover:text-white transition-colors text-[9px] font-extrabold px-2 py-1 rounded-lg"
+                        >
+                          View
+                        </Link>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="text-center py-12 bg-white rounded-3xl border border-slate-100">
+                <p className="text-xs text-slate-400 font-bold">No products uploaded yet.</p>
+              </div>
+            )}
           </div>
         )}
 
@@ -372,72 +482,185 @@ export default function BusinessesModule() {
           </div>
         )}
 
-        {/* TAB 4: MY STORE HUB */}
+        {/* TAB 4: MY STORE & UPLOAD PRODUCTS */}
         {activeTab === "my-business" && (
-          <div className="bg-white border border-slate-100 rounded-2xl p-5 space-y-4 shadow-[0_2px_12px_rgba(0,0,0,0.01)]">
-            <div className="text-center space-y-2">
-              <div className="w-16 h-16 rounded-full bg-primary/5 border border-primary/20 flex items-center justify-center text-3xl mx-auto">
-                🛍️
-              </div>
-              <h3 className="font-extrabold text-slate-800 text-base">Register Your Small Business</h3>
-              <p className="text-xs text-slate-500 max-w-xs mx-auto">
-                Set up your virtual storefront, list products/services, post reels/feeds, and reach customers nearby.
-              </p>
-            </div>
-
-            <div className="space-y-3 border-t border-slate-100 pt-4">
-              <div className="space-y-1">
-                <label className="text-xs font-bold text-slate-700">Business Name</label>
-                <input
-                  type="text"
-                  placeholder="e.g. Grandma's Spices"
-                  className="w-full px-3 py-2 text-xs font-medium border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary bg-white transition-all"
-                />
-              </div>
-
-              <div className="space-y-1">
-                <label className="text-xs font-bold text-slate-700">Category</label>
-                <select className="w-full px-3 py-2 text-xs font-medium border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary bg-white transition-all">
-                  <option>Food & Beverages</option>
-                  <option>Home & Garden</option>
-                  <option>Art & Handicrafts</option>
-                  <option>Apparel & Design</option>
-                  <option>Cosmetics & Beauty</option>
-                </select>
-              </div>
-
-              <div className="space-y-1">
-                <label className="text-xs font-bold text-slate-700">Business Description</label>
-                <textarea
-                  placeholder="Tell customers about your products, sourcing, and history..."
-                  rows={3}
-                  className="w-full px-3 py-2 text-xs font-medium border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary bg-white transition-all resize-none"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <label className="text-xs font-bold text-slate-700">Service Area</label>
-                  <input
-                    type="text"
-                    placeholder="e.g. Coimbatore City"
-                    className="w-full px-3 py-2 text-xs font-medium border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary bg-white transition-all"
-                  />
+          <div className="space-y-6">
+            
+            {/* Product Creation & Media Upload Form */}
+            <div className="bg-white border border-slate-100 rounded-3xl p-6 shadow-[0_2px_15px_rgba(0,0,0,0.02)] space-y-4">
+              <div className="flex items-center gap-3 border-b border-slate-100 pb-4">
+                <div className="w-10 h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center text-xl font-bold">
+                  ➕
                 </div>
-                <div className="space-y-1">
-                  <label className="text-xs font-bold text-slate-700">Working Hours</label>
-                  <input
-                    type="text"
-                    placeholder="e.g. 9 AM - 6 PM"
-                    className="w-full px-3 py-2 text-xs font-medium border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary bg-white transition-all"
-                  />
+                <div>
+                  <h3 className="font-extrabold text-slate-800 text-base">Worker / Seller: Add New Product</h3>
+                  <p className="text-xs text-slate-400 font-medium">Upload photos/videos & details for customers to view</p>
                 </div>
               </div>
 
-              <button className="w-full mt-2 bg-primary hover:bg-primary-light text-white text-xs font-bold py-3 rounded-xl shadow-sm shadow-primary/20 transition-colors">
-                Launch Digital Storefront
-              </button>
+              {createMessage && (
+                <div className={`p-3 rounded-2xl text-xs font-semibold flex items-center gap-2 ${
+                  createMessage.type === "success" 
+                    ? "bg-emerald-50 text-emerald-700 border border-emerald-100" 
+                    : "bg-red-50 text-red-700 border border-red-100"
+                }`}>
+                  {createMessage.type === "success" ? <CheckCircle2 size={16} /> : <AlertCircle size={16} />}
+                  <span>{createMessage.text}</span>
+                </div>
+              )}
+
+              <form onSubmit={handleCreateProduct} className="space-y-4">
+                
+                {/* Media File Upload Input */}
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-slate-700 block">Product Photo or Video</label>
+                  
+                  <div className="relative border-2 border-dashed border-slate-200 hover:border-primary/50 rounded-2xl p-4 bg-slate-50/50 flex flex-col items-center justify-center text-center transition-colors cursor-pointer group">
+                    <input
+                      type="file"
+                      accept="image/*,video/*"
+                      onChange={handleFileChange}
+                      className="absolute inset-0 opacity-0 cursor-pointer w-full h-full z-10"
+                    />
+
+                    {mediaPreview ? (
+                      <div className="w-full aspect-[16/9] rounded-xl overflow-hidden relative bg-black flex items-center justify-center">
+                        {isVideoUpload ? (
+                          <video src={mediaPreview} controls className="w-full h-full object-cover" />
+                        ) : (
+                          <img src={mediaPreview} alt="Preview" className="w-full h-full object-cover" />
+                        )}
+                        <span className="absolute top-2 right-2 bg-black/70 text-white text-[9px] font-bold px-2 py-0.5 rounded-full z-20">
+                          {isVideoUpload ? "Video Attached" : "Photo Attached"}
+                        </span>
+                      </div>
+                    ) : (
+                      <div className="space-y-2 py-3">
+                        <div className="w-12 h-12 rounded-full bg-white border border-slate-100 text-primary flex items-center justify-center mx-auto shadow-sm group-hover:scale-105 transition-transform">
+                          <Upload size={20} />
+                        </div>
+                        <div>
+                          <p className="text-xs font-bold text-slate-700">Click or Drag & Drop Image/Video</p>
+                          <p className="text-[10px] text-slate-400 font-medium mt-0.5">Supports PNG, JPG, WEBP, MP4, WEBM</p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <label className="text-xs font-bold text-slate-700">Product Title *</label>
+                    <input
+                      type="text"
+                      required
+                      value={prodName}
+                      onChange={(e) => setProdName(e.target.value)}
+                      placeholder="e.g. Handmade Ceramic Mug"
+                      className="w-full px-3 py-2 text-xs font-medium border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary bg-white"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-xs font-bold text-slate-700">Price (₹) *</label>
+                    <input
+                      type="number"
+                      required
+                      min="1"
+                      step="any"
+                      value={prodPrice}
+                      onChange={(e) => setProdPrice(e.target.value)}
+                      placeholder="e.g. 250"
+                      className="w-full px-3 py-2 text-xs font-medium border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary bg-white"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <label className="text-xs font-bold text-slate-700">Category</label>
+                    <select 
+                      value={prodCategory}
+                      onChange={(e) => setProdCategory(e.target.value)}
+                      className="w-full px-3 py-2 text-xs font-medium border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary bg-white"
+                    >
+                      <option value="General">General</option>
+                      <option value="Food & Beverages">Food & Beverages</option>
+                      <option value="Home & Garden">Home & Garden</option>
+                      <option value="Art & Handicrafts">Art & Handicrafts</option>
+                      <option value="Apparel & Design">Apparel & Design</option>
+                      <option value="Cosmetics & Beauty">Cosmetics & Beauty</option>
+                    </select>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-xs font-bold text-slate-700">Available Stock Qty</label>
+                    <input
+                      type="number"
+                      value={prodStock}
+                      onChange={(e) => setProdStock(e.target.value)}
+                      placeholder="10"
+                      className="w-full px-3 py-2 text-xs font-medium border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary bg-white"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <label className="text-xs font-bold text-slate-700">Seller / Shop Name</label>
+                    <input
+                      type="text"
+                      value={prodSellerName}
+                      onChange={(e) => setProdSellerName(e.target.value)}
+                      placeholder="e.g. Natural Organic Crafts"
+                      className="w-full px-3 py-2 text-xs font-medium border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary bg-white"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-xs font-bold text-slate-700">Seller Location</label>
+                    <input
+                      type="text"
+                      value={prodSellerLocation}
+                      onChange={(e) => setProdSellerLocation(e.target.value)}
+                      placeholder="e.g. Chennai, TN"
+                      className="w-full px-3 py-2 text-xs font-medium border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary bg-white"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-slate-700">Product Description</label>
+                  <textarea
+                    rows={3}
+                    value={prodDescription}
+                    onChange={(e) => setProdDescription(e.target.value)}
+                    placeholder="Describe material, size, usage, ingredients..."
+                    className="w-full px-3 py-2 text-xs font-medium border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary bg-white resize-none"
+                  />
+                </div>
+
+                <button 
+                  type="submit"
+                  disabled={uploading}
+                  className="w-full bg-primary hover:bg-primary-light text-white text-xs font-bold py-3.5 rounded-xl shadow-sm shadow-primary/20 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                >
+                  {uploading ? (
+                    <>
+                      <Loader2 className="animate-spin" size={16} />
+                      <span>Uploading & Publishing Product...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Plus size={16} />
+                      <span>Publish Product to Marketplace</span>
+                    </>
+                  )}
+                </button>
+
+              </form>
             </div>
+
           </div>
         )}
 

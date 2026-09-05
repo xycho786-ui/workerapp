@@ -22,33 +22,27 @@ export async function GET() {
       return NextResponse.json({ unreadNotificationsCount: 0, unreadMessagesCount: 0 }, { status: 200 });
     }
 
-    // 1. Fetch unread notifications count
-    const unreadNotificationsCount = await prisma.notification.count({
-      where: {
-        userId: dbUser.id,
-        isRead: false
-      }
-    });
-
-    // 2. Fetch unread chat messages count
-    const conversations = await prisma.conversation.findMany({
-      where: {
-        OR: [
-          { customerId: dbUser.id },
-          { worker: { userId: dbUser.id } }
-        ]
-      },
-      include: {
-        messages: {
-          where: {
-            senderId: { not: dbUser.id },
-            isRead: false
-          }
+    // Fetch unread notifications count and unread messages count in parallel via single-query SQL counts
+    const [unreadNotificationsCount, unreadMessagesCount] = await Promise.all([
+      prisma.notification.count({
+        where: {
+          userId: dbUser.id,
+          isRead: false
         }
-      }
-    });
-
-    const unreadMessagesCount = conversations.reduce((acc, conv) => acc + conv.messages.length, 0);
+      }),
+      prisma.message.count({
+        where: {
+          conversation: {
+            OR: [
+              { customerId: dbUser.id },
+              { worker: { userId: dbUser.id } }
+            ]
+          },
+          senderId: { not: dbUser.id },
+          isRead: false
+        }
+      })
+    ]);
 
     return NextResponse.json({
       unreadNotificationsCount,

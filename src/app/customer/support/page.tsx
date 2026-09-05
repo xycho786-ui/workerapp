@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { ArrowLeft, HelpCircle, ChevronDown, Send, MessageSquare, Check, AlertCircle, Loader2 } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import CustomerSidebarDrawer from "@/components/CustomerSidebarDrawer";
 
 interface FAQItem {
   q: string;
@@ -29,6 +31,7 @@ const FAQS: FAQItem[] = [
 ];
 
 export default function SupportPage() {
+  const router = useRouter();
   const [openFaq, setOpenFaq] = useState<number | null>(null);
   
   // Ticket form state
@@ -62,12 +65,14 @@ export default function SupportPage() {
       
       {/* 1. Header */}
       <header className="bg-white px-4 py-4 sticky top-0 z-10 border-b border-slate-100 flex items-center gap-3 shadow-[0_2px_15px_-3px_rgba(0,0,0,0.02)]">
-        <Link 
-          href="/customer/profile" 
-          className="p-2 -ml-2 text-slate-500 hover:text-primary hover:bg-slate-100 rounded-xl transition-all"
+        <button 
+          onClick={() => router.back()} 
+          className="p-2 -ml-2 text-slate-500 hover:text-primary hover:bg-slate-100 rounded-xl transition-all cursor-pointer border-none bg-transparent"
+          title="Go Back"
         >
           <ArrowLeft size={20} className="stroke-[2.5]" />
-        </Link>
+        </button>
+        <CustomerSidebarDrawer />
         <div>
           <h1 className="text-base font-black text-slate-800">Support Center</h1>
           <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Help & FAQs</p>

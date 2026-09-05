@@ -23,6 +23,7 @@ import {
   ArrowLeft
 } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useLanguage } from "@/context/LanguageContext";
 import Portal from "@/components/Portal";
 import PaymentSheet from "@/components/PaymentSheet";
@@ -80,6 +81,7 @@ export default function CustomerJobsClient({
   userName,
   userEmail,
 }: CustomerJobsClientProps) {
+  const router = useRouter();
   const { t } = useLanguage();
   const [bookings, setBookings] = useState<Booking[]>(initialBookings);
   const [requests, setRequests] = useState<ServiceRequest[]>(initialRequests);
@@ -206,10 +208,17 @@ export default function CustomerJobsClient({
   return (
     <div className="flex flex-col h-full bg-[#F8F9FC] font-sans pb-28">
       
-      {/* 1. Header Navigation Bar (Matches App Header) */}
+      {/* 1. Header Navigation Bar */}
       <div className="bg-white px-5 pt-12 pb-4 shadow-[0_2px_8px_rgba(0,0,0,0.02)] sticky top-0 z-40 border-b border-[#F0F0F0]">
         <div className="flex justify-between items-center">
           <div className="flex items-center gap-2">
+            <button 
+              onClick={() => router.back()} 
+              className="w-10 h-10 rounded-xl bg-slate-50 border border-slate-100 hover:bg-slate-100 flex items-center justify-center text-slate-600 transition-all active:scale-95 cursor-pointer shadow-xs"
+              title="Go Back"
+            >
+              <ArrowLeft size={18} className="stroke-[2.5]" />
+            </button>
             <CustomerSidebarDrawer />
             <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#E8514A]/10 to-[#E8514A]/20 flex items-center justify-center text-[#E8514A] font-extrabold text-[15px] border-[2px] border-white shadow-sm">
               {initials}

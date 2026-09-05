@@ -14,21 +14,33 @@ export async function POST(request: Request) {
 
     const buffer = Buffer.from(await file.arrayBuffer());
     
-    // Create public/uploads directory if it doesn't exist
+    // Upload directory always at public/uploads
     const uploadDir = path.join(process.cwd(), "public", "uploads");
     await fs.mkdir(uploadDir, { recursive: true });
 
-    // Generate unique file name
+    // Infer appropriate file extension
+    let fileExt = path.extname(file.name);
+    if (!fileExt || fileExt === ".") {
+      if (file.type.startsWith("image/")) {
+        const mimeSub = file.type.split("/")[1] || "png";
+        fileExt = `.${mimeSub === "jpeg" ? "jpg" : mimeSub}`;
+      } else if (file.type.startsWith("video/")) {
+        fileExt = `.${file.type.split("/")[1] || "mp4"}`;
+      } else {
+        fileExt = ".png";
+      }
+    }
+
+    // Generate clean unique filename
     const fileId = crypto.randomUUID();
-    const fileExt = path.extname(file.name) || ".webm";
     const filename = `${fileId}${fileExt}`;
     const filePath = path.join(uploadDir, filename);
 
-    // Save the file
+    // Write file to public/uploads
     await fs.writeFile(filePath, buffer);
 
-    const fileUrl = `/uploads/${filename}`;
-    return NextResponse.json({ success: true, url: fileUrl }, { status: 200 });
+    const relativeUrl = `/uploads/${filename}`;
+    return NextResponse.json({ success: true, url: relativeUrl }, { status: 200 });
   } catch (error: any) {
     console.error("File upload error:", error);
     return NextResponse.json({ error: error.message || "Upload failed" }, { status: 500 });

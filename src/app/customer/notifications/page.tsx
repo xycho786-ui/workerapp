@@ -15,9 +15,11 @@ import {
   RefreshCw,
   Loader2,
   ChevronRight,
-  X
+  X,
+  ArrowLeft
 } from "lucide-react";
 import { useLanguage } from "@/context/LanguageContext";
+import CustomerSidebarDrawer from "@/components/CustomerSidebarDrawer";
 
 interface Notification {
   id: string;
@@ -60,8 +62,12 @@ export default function CustomerNotificationsPage() {
 
   useEffect(() => {
     fetchNotifications();
-    // Poll every 5 seconds to keep notifications updated in real-time
-    const interval = setInterval(() => fetchNotifications(true), 5000);
+    // Poll every 10 seconds only when document is visible
+    const interval = setInterval(() => {
+      if (!document.hidden) {
+        fetchNotifications(true);
+      }
+    }, 10000);
     return () => clearInterval(interval);
   }, []);
 
@@ -175,11 +181,21 @@ export default function CustomerNotificationsPage() {
       {/* 1. Header Area */}
       <div className="bg-white px-5 pt-12 pb-4 shadow-[0_2px_8px_rgba(0,0,0,0.02)] sticky top-0 z-40 border-b border-[#F0F0F0] flex flex-col gap-3">
         <div className="flex justify-between items-start">
-          <div>
-            <h1 className="text-xl font-black text-[#1A2340] tracking-tight">{t("notificationsPage.notifications")}</h1>
-            <p className="text-xs text-[#888BA0] font-semibold mt-1">
-              Stay updated on your bookings and activity.
-            </p>
+          <div className="flex items-center gap-3">
+            <button 
+              onClick={() => router.back()} 
+              className="p-2 -ml-2 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-xl transition-all cursor-pointer border-none bg-transparent"
+              title="Go Back"
+            >
+              <ArrowLeft size={20} className="stroke-[2.5]" />
+            </button>
+            <CustomerSidebarDrawer />
+            <div>
+              <h1 className="text-xl font-black text-[#1A2340] tracking-tight">{t("notificationsPage.notifications")}</h1>
+              <p className="text-xs text-[#888BA0] font-semibold mt-1">
+                Stay updated on your bookings and activity.
+              </p>
+            </div>
           </div>
           
           <div className="flex gap-2">

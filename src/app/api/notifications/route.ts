@@ -11,17 +11,9 @@ export async function GET() {
       return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
     }
 
-    const dbUser = await prisma.user.findUnique({
-      where: { id: user.id }
-    });
-
-    if (!dbUser) {
-      return NextResponse.json({ message: 'User not found' }, { status: 404 });
-    }
-
-    // Fetch all notifications for user sorted by newest first
+    // Fetch all notifications for user sorted by newest first directly using user.id
     const notifications = await prisma.notification.findMany({
-      where: { userId: dbUser.id },
+      where: { userId: user.id },
       orderBy: { createdAt: 'desc' }
     });
 

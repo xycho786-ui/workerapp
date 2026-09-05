@@ -42,7 +42,11 @@ export default function LandingPageClient({ user }: LandingPageProps) {
   const handleSelectService = (route: string, id: string, cookieRole?: string) => {
     if (cookieRole) setCookieRole(cookieRole);
     setLoading(id);
-    router.push(route);
+    if (typeof window !== "undefined") {
+      window.location.href = route;
+    } else {
+      router.push(route);
+    }
   };
 
   const roles = user.roles || ["customer"];
@@ -216,7 +220,7 @@ export default function LandingPageClient({ user }: LandingPageProps) {
                       )}
                     </button>
                     <button
-                      onClick={() => handleSelectService("/worker/dashboard", "bookings-worker", defaultWorkerRole)}
+                      onClick={() => handleSelectService("/customer/jobs", "bookings-worker", defaultWorkerRole)}
                       disabled={loading !== null}
                       className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold py-2.5 rounded-xl transition-all text-center cursor-pointer flex items-center justify-center gap-1"
                     >
@@ -231,7 +235,7 @@ export default function LandingPageClient({ user }: LandingPageProps) {
               ) : (
                 <button
                   onClick={() => handleSelectService(
-                    hasAnyWorker ? "/worker/dashboard" : "/customer/dashboard",
+                    hasAnyWorker ? "/customer/jobs" : "/customer/dashboard",
                     "bookings",
                     hasAnyWorker ? defaultWorkerRole : "customer"
                   )}

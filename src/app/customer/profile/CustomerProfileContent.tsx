@@ -213,9 +213,16 @@ export default function CustomerProfileContent({
     <div className="flex flex-col h-full bg-[#FCFDFD] font-sans pb-24">
       {/* Profile Header */}
       <div className="bg-gradient-to-b from-[#F08080]/15 to-transparent px-5 pt-8 pb-6 border-b border-gray-100/50">
-        <div className="flex items-center gap-3 mb-4">
+        <div className="flex items-center gap-2 mb-4">
+          <button 
+            onClick={() => router.back()} 
+            className="p-2 -ml-2 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-xl transition-all cursor-pointer border-none bg-transparent"
+            title="Go Back"
+          >
+            <ArrowLeft size={20} className="stroke-[2.5]" />
+          </button>
           <CustomerSidebarDrawer />
-          <span className="text-sm font-black text-slate-800">My Profile</span>
+          <span className="text-sm font-black text-slate-800 ml-1">My Profile</span>
         </div>
         <div className="flex items-center gap-5">
           <div className="relative group">

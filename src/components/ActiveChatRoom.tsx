@@ -100,8 +100,11 @@ export default function ActiveChatRoom({
       }
     };
 
-    fetchMessages();
-    const interval = setInterval(fetchMessages, 1500);
+    const interval = setInterval(() => {
+      if (!document.hidden) {
+        fetchMessages();
+      }
+    }, 2000);
 
     return () => {
       active = false;
@@ -437,9 +440,41 @@ export default function ActiveChatRoom({
 
   if (isLoading) {
     return (
-      <div className="flex-1 flex flex-col items-center justify-center p-6 bg-slate-50">
+      <div className="flex-1 flex flex-col items-center justify-center p-6 bg-slate-50 min-h-screen">
         <div className="w-10 h-10 border-4 border-slate-200 border-t-[#E8514A] rounded-full animate-spin"></div>
         <p className="text-xs text-slate-400 font-bold mt-3">Loading chat room...</p>
+      </div>
+    );
+  }
+
+  if (isCompleted) {
+    return (
+      <div className="flex-1 flex flex-col h-full min-h-screen bg-slate-50 font-sans">
+        <header className="bg-white px-5 py-4 border-b border-slate-100 flex items-center gap-3 sticky top-0 z-30 shadow-xs">
+          <button 
+            onClick={onBack}
+            className="p-1.5 hover:bg-slate-100 rounded-xl text-slate-600 transition-colors border-none bg-transparent cursor-pointer"
+          >
+            <ArrowLeft size={20} />
+          </button>
+          <h2 className="text-sm font-extrabold text-[#1A2340]">Chat Session Closed</h2>
+        </header>
+
+        <div className="flex-1 flex flex-col items-center justify-center p-6 text-center">
+          <div className="w-16 h-16 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center mb-4 border border-emerald-100 shadow-sm">
+            <Check size={28} className="stroke-[2.5]" />
+          </div>
+          <h3 className="text-base font-extrabold text-[#1A2340] mb-2">Work Completed & Chat Closed</h3>
+          <p className="text-xs text-slate-500 font-medium max-w-[280px] leading-relaxed mb-6">
+            This work request has been completed. The chat session and message history for this job have been closed.
+          </p>
+          <button 
+            onClick={onBack}
+            className="px-6 py-3 bg-[#1A2340] hover:bg-[#2D3F6A] text-white font-bold rounded-xl text-xs transition-colors active:scale-95 shadow-sm cursor-pointer"
+          >
+            Back to Inbox
+          </button>
+        </div>
       </div>
     );
   }

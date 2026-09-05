@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { ArrowLeft, Wallet, Plus, CreditCard, ShieldCheck, ArrowUpRight, ArrowDownLeft, X, Loader2, DollarSign, Check } from "lucide-react";
-import Link from "next/link";
+import { useRouter } from "next/navigation";
 import CustomerSidebarDrawer from "@/components/CustomerSidebarDrawer";
 
 interface Transaction {
@@ -14,11 +14,12 @@ interface Transaction {
 }
 
 export default function WalletPage() {
+  const router = useRouter();
   const [balance, setBalance] = useState<number>(0);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [isAddFundsOpen, setIsAddFundsOpen] = useState(false);
-  
+
   // Add funds form state
   const [addAmount, setAddAmount] = useState("1000");
   const [paymentMethod, setPaymentMethod] = useState("UPI");
@@ -79,7 +80,14 @@ export default function WalletPage() {
       
       {/* 1. Header */}
       <header className="bg-white px-4 py-4 sticky top-0 z-10 border-b border-slate-100 flex items-center justify-between shadow-[0_2px_15px_-3px_rgba(0,0,0,0.02)]">
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
+          <button 
+            onClick={() => router.back()} 
+            className="p-2 -ml-2 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-xl transition-all cursor-pointer border-none bg-transparent"
+            title="Go Back"
+          >
+            <ArrowLeft size={20} className="stroke-[2.5]" />
+          </button>
           <CustomerSidebarDrawer />
           <div>
             <h1 className="text-base font-black text-slate-800">My Wallet</h1>

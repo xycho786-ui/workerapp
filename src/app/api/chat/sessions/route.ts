@@ -1,8 +1,11 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { createClient } from '@/utils/supabase/server';
 
-export async function GET() {
+const DEFAULT_SESSION_LIMIT = 40;
+const RECENT_MESSAGE_WINDOW = 30;
+
+export async function GET(request: NextRequest) {
   try {
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
@@ -23,34 +26,67 @@ export async function GET() {
       return NextResponse.json({ message: 'User not found in database' }, { status: 404 });
     }
 
+    const requestedLimit = Number(request.nextUrl.searchParams.get("limit"));
+    const limit = Number.isFinite(requestedLimit)
+      ? Math.min(Math.max(requestedLimit, 1), 100)
+      : DEFAULT_SESSION_LIMIT;
+
     let bookings = [];
 
-    // Query bookings depending on user role
+    // Query active bookings only (pending, accepted, in progress) depending on user role
+    const activeStatuses: Array<"PENDING" | "ACCEPTED" | "IN_PROGRESS"> = ['PENDING', 'ACCEPTED', 'IN_PROGRESS'];
+
     if (dbUser.role === 'WORKER' && dbUser.workerProfile) {
       bookings = await prisma.booking.findMany({
-        where: { workerId: dbUser.workerProfile.id },
-        include: {
-          customer: true,
+        where: { 
+          workerId: dbUser.workerProfile.id,
+          status: { in: activeStatuses }
+        },
+        select: {
+          id: true,
+          customerId: true,
+          workerId: true,
+          status: true,
+          jobDetails: true,
+          updatedAt: true,
+          customer: {
+            select: { id: true, name: true, email: true }
+          },
           worker: {
-            include: {
-              user: true
-            }
+            select: {
+              userId: true,
+              user: { select: { id: true, name: true, email: true } }
+            },
           }
         },
-        orderBy: { updatedAt: 'desc' }
+        orderBy: { updatedAt: 'desc' },
+        take: limit
       });
     } else {
       bookings = await prisma.booking.findMany({
-        where: { customerId: dbUser.id },
-        include: {
-          customer: true,
+        where: { 
+          customerId: dbUser.id,
+          status: { in: activeStatuses }
+        },
+        select: {
+          id: true,
+          customerId: true,
+          workerId: true,
+          status: true,
+          jobDetails: true,
+          updatedAt: true,
+          customer: {
+            select: { id: true, name: true, email: true }
+          },
           worker: {
-            include: {
-              user: true
-            }
+            select: {
+              userId: true,
+              user: { select: { id: true, name: true, email: true } }
+            },
           }
         },
-        orderBy: { updatedAt: 'desc' }
+        orderBy: { updatedAt: 'desc' },
+        take: limit
       });
     }
 
@@ -60,10 +96,20 @@ export async function GET() {
       where: (isWorkerRole && dbUser.workerProfile)
         ? { workerId: dbUser.workerProfile.id } 
         : { customerId: dbUser.id },
-      include: {
+      select: {
+        id: true,
+        customerId: true,
+        workerId: true,
         messages: {
+          select: {
+            id: true,
+            senderId: true,
+            content: true,
+            isRead: true,
+            createdAt: true
+          },
           orderBy: { createdAt: 'desc' },
-          // Optimization: Only fetch recent/unread messages or let's fetch all for simplicity, but in a single query
+          take: RECENT_MESSAGE_WINDOW
         }
       }
     });

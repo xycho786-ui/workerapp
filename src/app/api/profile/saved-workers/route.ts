@@ -14,7 +14,7 @@ export async function GET() {
 
     const saved = await prisma.savedWorker.findMany({
       where: {
-        customer: { email: user.email }
+        customerId: user.id
       },
       include: {
         worker: {
@@ -110,12 +110,10 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ message: 'User not found' }, { status: 404 });
     }
 
-    await prisma.savedWorker.delete({
+    await prisma.savedWorker.deleteMany({
       where: {
-        customerId_workerId: {
-          customerId: dbUser.id,
-          workerId: workerId
-        }
+        customerId: dbUser.id,
+        workerId
       }
     });
 

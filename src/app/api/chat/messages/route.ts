@@ -3,6 +3,10 @@ import { prisma } from '@/lib/prisma';
 import { createClient } from '@/utils/supabase/server';
 import { db as firebaseDb, messaging } from '@/lib/firebaseAdmin';
 
+const DEFAULT_MESSAGE_LIMIT = 50;
+const MAX_MESSAGE_LIMIT = 100;
+const FETCH_WINDOW_MULTIPLIER = 4;
+
 export async function GET(request: Request) {
   try {
     const supabase = await createClient();
@@ -14,32 +18,37 @@ export async function GET(request: Request) {
 
     const { searchParams } = new URL(request.url);
     const bookingId = searchParams.get('bookingId');
+    const before = searchParams.get('before');
+    const requestedLimit = Number(searchParams.get('limit'));
+    const limit = Number.isFinite(requestedLimit)
+      ? Math.min(Math.max(requestedLimit, 1), MAX_MESSAGE_LIMIT)
+      : DEFAULT_MESSAGE_LIMIT;
 
     if (!bookingId) {
       return NextResponse.json({ message: 'Booking ID is required' }, { status: 400 });
     }
 
-    // Find the booking
-    const booking = await prisma.booking.findUnique({
-      where: { id: bookingId },
-      include: {
-        customer: true,
-        worker: {
-          include: {
-            user: true
+    // Fetch booking and dbUser in parallel
+    const [booking, dbUser] = await Promise.all([
+      prisma.booking.findUnique({
+        where: { id: bookingId },
+        include: {
+          customer: true,
+          worker: {
+            include: {
+              user: true
+            }
           }
         }
-      }
-    });
+      }),
+      prisma.user.findUnique({
+        where: { id: user.id }
+      })
+    ]);
 
     if (!booking) {
       return NextResponse.json({ message: 'Booking not found' }, { status: 404 });
     }
-
-    // Resolve current DB user
-    const dbUser = await prisma.user.findUnique({
-      where: { id: user.id }
-    });
 
     if (!dbUser) {
       return NextResponse.json({ message: 'User not found in database' }, { status: 404 });
@@ -53,6 +62,22 @@ export async function GET(request: Request) {
       return NextResponse.json({ message: 'Forbidden' }, { status: 403 });
     }
 
+    const participant = isCustomer
+      ? { name: booking.worker.user.name, email: booking.worker.user.email, id: booking.worker.userId, role: 'WORKER' }
+      : { name: booking.customer.name, email: booking.customer.email, id: booking.customer.id, role: 'CUSTOMER' };
+
+    // If job is finished (COMPLETED, CANCELLED, REJECTED), close chat facility and clear active messages
+    const isFinished = booking.status === "COMPLETED" || booking.status === "CANCELLED" || booking.status === "REJECTED";
+    if (isFinished) {
+      return NextResponse.json({ 
+        messages: [], 
+        chatEnabled: false, 
+        isCompleted: true, 
+        bookingStatus: booking.status,
+        participant
+      }, { status: 200 });
+    }
+
     // Find the conversation
     const conversation = await prisma.conversation.findUnique({
       where: {
@@ -64,21 +89,28 @@ export async function GET(request: Request) {
     });
 
     if (!conversation) {
-      return NextResponse.json({ messages: [], bookingStatus: booking.status });
+      return NextResponse.json({ messages: [], bookingStatus: booking.status, participant, chatEnabled: true, isCompleted: false });
     }
 
     // Fetch messages from Firestore if connected, otherwise fallback to local Prisma DB
     let rawMessages: any[] = [];
     let fetchedFromFirebase = false;
+    const fetchWindow = limit * FETCH_WINDOW_MULTIPLIER;
 
     if (firebaseDb) {
       try {
-        const snapshot = await firebaseDb
+        let query = firebaseDb
           .collection('conversations')
           .doc(conversation.id)
           .collection('messages')
-          .orderBy('createdAt', 'asc')
-          .get();
+          .orderBy('createdAt', 'desc')
+          .limit(fetchWindow);
+
+        if (before) {
+          query = query.where('createdAt', '<', before);
+        }
+
+        const snapshot = await query.get();
 
         rawMessages = snapshot.docs.map(doc => {
           const data = doc.data();
@@ -89,7 +121,7 @@ export async function GET(request: Request) {
             isRead: data.isRead,
             createdAt: new Date(data.createdAt)
           };
-        });
+        }).reverse();
         fetchedFromFirebase = true;
       } catch (fbGetErr) {
         console.error('Failed to get messages from Firestore, falling back to local database:', fbGetErr);
@@ -97,14 +129,19 @@ export async function GET(request: Request) {
     }
 
     if (!fetchedFromFirebase) {
-      rawMessages = await prisma.message.findMany({
-        where: { conversationId: conversation.id },
-        orderBy: { createdAt: 'asc' }
+      const fetchedMessages = await prisma.message.findMany({
+        where: {
+          conversationId: conversation.id,
+          ...(before ? { createdAt: { lt: new Date(before) } } : {})
+        },
+        orderBy: { createdAt: 'desc' },
+        take: fetchWindow
       });
+      rawMessages = fetchedMessages.reverse();
     }
 
     // Parse and filter messages belonging to this specific bookingId
-    const filteredMessages = rawMessages.map(msg => {
+    const allFilteredMessages = rawMessages.map(msg => {
       try {
         const payload = JSON.parse(msg.content);
         if (payload.bookingId === bookingId) {
@@ -141,6 +178,10 @@ export async function GET(request: Request) {
       }
     }).filter(Boolean);
 
+    const filteredMessages = allFilteredMessages.slice(-limit);
+    const hasMore = allFilteredMessages.length > limit || rawMessages.length === fetchWindow;
+    const nextCursor = filteredMessages.length > 0 ? filteredMessages[0]?.createdAt : null;
+
     // Update unread status for messages sent by the other participant
     try {
       await prisma.message.updateMany({
@@ -176,10 +217,10 @@ export async function GET(request: Request) {
 
     return NextResponse.json({ 
       messages: filteredMessages, 
+      hasMore,
+      nextCursor,
       bookingStatus: booking.status,
-      participant: isCustomer 
-        ? { name: booking.worker.user.name, email: booking.worker.user.email, id: booking.worker.userId, role: 'WORKER' }
-        : { name: booking.customer.name, email: booking.customer.email, id: booking.customer.id, role: 'CUSTOMER' }
+      participant
     }, { status: 200 });
 
   } catch (error: any) {

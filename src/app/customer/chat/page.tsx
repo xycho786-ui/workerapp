@@ -107,8 +107,8 @@ function CustomerChatContent() {
     }
 
     checkBookingStatus();
-    // Poll status every 3 seconds to auto-enable chat once accepted
-    const interval = setInterval(checkBookingStatus, 3000);
+    // Poll status lightly to auto-enable chat once accepted without hammering the API.
+    const interval = setInterval(checkBookingStatus, 10000);
     return () => clearInterval(interval);
   }, [bookingId]);
 
@@ -131,7 +131,7 @@ function CustomerChatContent() {
     }
 
     fetchSessions();
-    const interval = setInterval(fetchSessions, 4000);
+    const interval = setInterval(fetchSessions, 15000);
     return () => clearInterval(interval);
   }, [bookingId, showSupportBot]);
 
@@ -250,6 +250,27 @@ function CustomerChatContent() {
         <button 
           onClick={() => router.push('/customer/jobs')}
           className="px-6 py-3 bg-[#1A2340] hover:bg-[#2D3F6A] text-white font-bold rounded-xl text-xs transition-colors active:scale-95 shadow-sm"
+        >
+          Back to My Jobs
+        </button>
+      </div>
+    );
+  }
+
+  // 2. If bookingId is provided but job is COMPLETED, CANCELLED, or REJECTED
+  if (bookingId && (bookingStatus === 'COMPLETED' || bookingStatus === 'CANCELLED' || bookingStatus === 'REJECTED')) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-6 text-center">
+        <div className="w-16 h-16 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center mb-5 border border-emerald-100 shadow-sm">
+          <Lock size={24} className="stroke-[2.5]" />
+        </div>
+        <h3 className="text-base font-extrabold text-[#1A2340] mb-2">Work Completed — Chat Closed</h3>
+        <p className="text-xs text-slate-500 font-medium max-w-[280px] leading-relaxed mb-6">
+          This work has been completed. All chat facilities and message history for this job have been closed.
+        </p>
+        <button 
+          onClick={() => router.push('/customer/jobs')}
+          className="px-6 py-3 bg-[#1A2340] hover:bg-[#2D3F6A] text-white font-bold rounded-xl text-xs transition-colors active:scale-95 shadow-sm cursor-pointer"
         >
           Back to My Jobs
         </button>
