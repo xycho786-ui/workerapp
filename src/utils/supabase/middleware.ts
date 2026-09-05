@@ -111,9 +111,14 @@ export const updateSession = async (request: NextRequest) => {
       },
     });
 
-    const userRes = await supabase.auth.getUser();
-    user = userRes.data.user;
-    error = userRes.error;
+    try {
+      const userRes = await supabase.auth.getUser();
+      user = userRes.data.user;
+      error = userRes.error;
+    } catch (err) {
+      user = null;
+      error = null;
+    }
   }
 
   if (error) {

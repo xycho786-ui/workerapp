@@ -100,7 +100,11 @@ export const createClient = async () => {
       console.warn("Failed to locally decode Supabase session token, falling back:", e);
     }
 
-    return originalGetUser(jwt);
+    try {
+      return await originalGetUser(jwt);
+    } catch (e) {
+      return { data: { user: null }, error: null };
+    }
   };
 
   return client;
